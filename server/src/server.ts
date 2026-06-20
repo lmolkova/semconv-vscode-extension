@@ -1,28 +1,29 @@
+import fg from "fast-glob";
+import * as fs from "fs/promises";
 import {
   createConnection,
-  ProposedFeatures,
-  TextDocuments,
-  TextDocumentSyncKind,
+  DefinitionParams,
+  Diagnostic,
+  DiagnosticSeverity,
+  FileChangeType,
+  Hover,
+  HoverParams,
   InitializeParams,
   InitializeResult,
   Location,
-  Hover,
-  Diagnostic,
-  DiagnosticSeverity,
   MarkupKind,
-  DefinitionParams,
+  ProposedFeatures,
   ReferenceParams,
-  HoverParams,
-  FileChangeType
-} from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { URI } from 'vscode-uri';
-import * as fs from 'fs/promises';
-import fg from 'fast-glob';
-import { extract } from './model';
-import { RegistryIndex } from './index';
-import { Definition, RESOLUTION } from './types';
-import { looksLikeSemconv } from './parser';
+  TextDocuments,
+  TextDocumentSyncKind,
+} from "vscode-languageserver/node";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { URI } from "vscode-uri";
+
+import { RegistryIndex } from "./index";
+import { extract } from "./model";
+import { looksLikeSemconv } from "./parser";
+import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -34,44 +35,40 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
   workspaceRoots = (params.workspaceFolders ?? [])
     .map((f) => URI.parse(f.uri).fsPath)
     .filter(Boolean);
-  if (workspaceRoots.length === 0 && params.rootUri) {
-    workspaceRoots = [URI.parse(params.rootUri).fsPath];
-  }
   return {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       definitionProvider: true,
       referencesProvider: true,
-      hoverProvider: true
-    }
+      hoverProvider: true,
+    },
   };
 });
 
-connection.onInitialized(async () => {
-  await scanWorkspace();
-  // Re-validate anything already open now that the full registry is indexed.
-  for (const doc of documents.all()) {
-    indexDocument(doc);
-    validate(doc);
-  }
+connection.onInitialized(() => {
+  void scanWorkspace().then(() => {
+    for (const doc of documents.all()) {
+      indexDocument(doc);
+      validate(doc);
+    }
+  });
 });
 
-/** Scan workspace folders for definition/2 files and seed the index. */
 async function scanWorkspace(): Promise<void> {
   for (const root of workspaceRoots) {
-    let files: string[] = [];
+    let files: string[];
     try {
-      files = await fg(['**/*.yaml', '**/*.yml'], {
+      files = await fg(["**/*.yaml", "**/*.yml"], {
         cwd: root,
         absolute: true,
-        ignore: ['**/node_modules/**', '**/.git/**']
+        ignore: ["**/node_modules/**", "**/.git/**"],
       });
     } catch {
       continue;
     }
     for (const file of files) {
       try {
-        const text = await fs.readFile(file, 'utf8');
+        const text = await fs.readFile(file, "utf8");
         if (!looksLikeSemconv(text)) continue;
         const uri = URI.file(file).toString();
         if (documents.get(uri)) continue; // open docs are indexed from their buffer
@@ -98,15 +95,17 @@ documents.onDidChangeContent((change) => {
   validate(change.document);
 });
 
-connection.onDidChangeWatchedFiles(async (params) => {
-  for (const change of params.changes) {
-    if (documents.get(change.uri)) continue; // open buffers win
-    if (change.type === FileChangeType.Deleted) {
-      index.removeDocument(change.uri);
-    } else {
-      await scanFile(change.uri);
+connection.onDidChangeWatchedFiles((params) => {
+  void (async () => {
+    for (const change of params.changes) {
+      if (documents.get(change.uri)) continue; // open buffers win
+      if (change.type === FileChangeType.Deleted) {
+        index.removeDocument(change.uri);
+      } else {
+        await scanFile(change.uri);
+      }
     }
-  }
+  })();
 });
 
 documents.onDidClose((event) => {
@@ -116,7 +115,7 @@ documents.onDidClose((event) => {
 
 async function scanFile(uri: string): Promise<void> {
   try {
-    const text = await fs.readFile(URI.parse(uri).fsPath, 'utf8');
+    const text = await fs.readFile(URI.parse(uri).fsPath, "utf8");
     const { isSemconv, defs, refs, hasImports } = extract(text, uri);
     if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
     else index.removeDocument(uri);
@@ -133,7 +132,7 @@ function validate(doc: TextDocument): void {
       severity: DiagnosticSeverity.Warning,
       range: ref.range,
       message: `Unresolved reference: '${ref.id}' is not defined in this registry.`,
-      source: 'semconv'
+      source: "semconv",
     });
   }
 
@@ -142,17 +141,17 @@ function validate(doc: TextDocument): void {
       severity: DiagnosticSeverity.Warning,
       range: def.nameRange,
       message: `Duplicate ${def.kind} definition: '${def.id}' is defined more than once.`,
-      source: 'semconv'
+      source: "semconv",
     });
   }
 
-  connection.sendDiagnostics({ uri: doc.uri, diagnostics });
+  void connection.sendDiagnostics({ uri: doc.uri, diagnostics });
 }
 
 connection.onDefinition((params: DefinitionParams): Location[] => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
   if (!symbol) return [];
-  if (symbol.kind === 'reference') {
+  if (symbol.kind === "reference") {
     return index
       .definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])
       .map((d) => Location.create(d.uri, d.nameRange));
@@ -165,15 +164,12 @@ connection.onReferences((params: ReferenceParams): Location[] => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
   if (!symbol) return [];
 
-  const id = symbol.kind === 'definition' ? symbol.def.id : symbol.ref.id;
-  const defKind = symbol.kind === 'definition' ? symbol.def.kind : undefined;
-  const locations = index
-    .referencesFor(id, defKind)
-    .map((r) => Location.create(r.uri, r.range));
+  const id = symbol.kind === "definition" ? symbol.def.id : symbol.ref.id;
+  const defKind = symbol.kind === "definition" ? symbol.def.kind : undefined;
+  const locations = index.referencesFor(id, defKind).map((r) => Location.create(r.uri, r.range));
 
   if (params.context.includeDeclaration) {
-    const kinds =
-      symbol.kind === 'definition' ? [symbol.def.kind] : RESOLUTION[symbol.ref.refKind];
+    const kinds = symbol.kind === "definition" ? [symbol.def.kind] : RESOLUTION[symbol.ref.refKind];
     for (const d of index.definitionsFor(id, kinds)) {
       locations.push(Location.create(d.uri, d.nameRange));
     }
@@ -186,18 +182,18 @@ connection.onHover((params: HoverParams): Hover | null => {
   if (!symbol) return null;
 
   let def: Definition | undefined;
-  if (symbol.kind === 'definition') {
+  if (symbol.kind === "definition") {
     def = symbol.def;
   } else {
     def = index.definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])[0];
   }
   if (!def) {
-    if (symbol.kind === 'reference') {
+    if (symbol.kind === "reference") {
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: `**${symbol.ref.id}**\n\n_unresolved reference_`
-        }
+          value: `**${symbol.ref.id}**\n\n_unresolved reference_`,
+        },
       };
     }
     return null;
@@ -213,9 +209,9 @@ function renderHover(def: Definition): string {
   if (def.instrument) meta.push(`instrument: \`${def.instrument}\``);
   if (def.unit) meta.push(`unit: \`${def.unit}\``);
   if (def.stability) meta.push(`stability: \`${def.stability}\``);
-  if (meta.length) lines.push(meta.join(' · '));
-  if (def.brief) lines.push('', def.brief);
-  return lines.join('\n');
+  if (meta.length) lines.push(meta.join(" · "));
+  if (def.brief) lines.push("", def.brief);
+  return lines.join("\n");
 }
 
 documents.listen(connection);

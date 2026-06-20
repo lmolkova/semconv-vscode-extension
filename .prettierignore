@@ -1,0 +1,6 @@
+out/
+dist/
+*.vsix
+.vscode-test/
+pnpm-lock.yaml
+test/fixtures/

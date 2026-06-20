@@ -19,6 +19,21 @@ declares an `imports` section (because the imported id universe is unknown).
       known, instead of blanket suppression — match imported ids against the
       declared wildcards. (Replaces the current rule in [server/src/index.ts](server/src/index.ts) `unresolvedReferences`.)
 
+## Support definition manifest files
+
+The parser today only recognizes `file_format: definition/2` documents; the
+registry's `manifest.yaml` (name, description, schema base url, dependency list)
+is ignored.
+
+- [ ] Detect and parse `manifest.yaml` (registry metadata + `dependencies`) as a
+      first-class document type alongside `definition/2`.
+- [ ] Use the manifest to discover the registry root and the dependency list that
+      feeds cross-registry import resolution (see _Support dependencies_ above).
+- [ ] Go-to-definition / hover on a dependency entry — jump to or describe the
+      resolved registry.
+- [ ] Basic diagnostics for the manifest (missing/duplicate name, malformed
+      dependency entries).
+
 ## Support autocomplete
 
 - [ ] Completion inside `ref:` — suggest attribute keys from the index (local +
@@ -41,7 +56,7 @@ declares an `imports` section (because the imported id universe is unknown).
       `semconv.schema.v2.json` (structural errors, unknown fields).
 - [ ] Consider a command to run Weaver codegen / live-resolve from within VS Code.
 
-## Other features 
+## Other features
 
 - [ ] **Rename** — rename an attribute key / group id and update every reference
       across the registry (`renameProvider`).

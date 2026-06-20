@@ -1,0 +1,37 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules/**",
+    "out/**",
+    "dist/**",
+    "*.vsix",
+    ".vscode-test/**",
+    "pnpm-lock.yaml",
+    "test/fixtures/**",
+    "LICENSE"
+  ],
+  "words": [
+    "semconv",
+    "otel",
+    "opentelemetry",
+    "definitionprovider",
+    "referenceprovider",
+    "esbuild",
+    "vsce",
+    "vscodeignore",
+    "renovate",
+    "corepack",
+    "pnpm",
+    "vitest",
+    "esbenp",
+    "dbaeumer",
+    "lmolkova",
+    "nolazy",
+    "execargv",
+    "genai",
+    "dups",
+    "unparseable",
+    "codegen"
+  ]
+}

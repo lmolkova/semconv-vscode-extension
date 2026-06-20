@@ -1,22 +1,21 @@
-import { build, context } from 'esbuild';
+import { build, context } from "esbuild";
 
-const watch = process.argv.includes('--watch');
+const watch = process.argv.includes("--watch");
 
-/** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
-  platform: 'node',
-  target: 'node18',
-  format: 'cjs',
+  platform: "node",
+  target: "node18",
+  format: "cjs",
   sourcemap: true,
   // vscode is provided by the host at runtime and must never be bundled.
-  external: ['vscode'],
-  logLevel: 'info'
+  external: ["vscode"],
+  logLevel: "info",
 };
 
 const builds = [
-  { ...common, entryPoints: ['client/src/extension.ts'], outfile: 'out/client/extension.js' },
-  { ...common, entryPoints: ['server/src/server.ts'], outfile: 'out/server/server.js' }
+  { ...common, entryPoints: ["client/src/extension.ts"], outfile: "out/client/extension.js" },
+  { ...common, entryPoints: ["server/src/server.ts"], outfile: "out/server/server.js" },
 ];
 
 if (watch) {
@@ -24,7 +23,7 @@ if (watch) {
     const ctx = await context(cfg);
     await ctx.watch();
   }
-  console.log('esbuild watching...');
+  console.log("esbuild watching...");
 } else {
   await Promise.all(builds.map((cfg) => build(cfg)));
 }

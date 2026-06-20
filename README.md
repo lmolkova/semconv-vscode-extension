@@ -21,13 +21,13 @@ catch broken references as you type.
 
 ### What links to what
 
-| Definition | id field | Reference | Resolves to |
-|---|---|---|---|
-| attribute | `key` | `ref` | attribute |
-| attribute_group | `id` | `ref_group` | attribute_group |
-| entity / span | `type` | `entity_associations[]` | entity |
-| event / metric | `name` | `*_refinements[].ref` | the matching signal |
-| enum member | `id` (inline) | | |
+| Definition      | id field      | Reference               | Resolves to         |
+| --------------- | ------------- | ----------------------- | ------------------- |
+| attribute       | `key`         | `ref`                   | attribute           |
+| attribute_group | `id`          | `ref_group`             | attribute_group     |
+| entity / span   | `type`        | `entity_associations[]` | entity              |
+| event / metric  | `name`        | `*_refinements[].ref`   | the matching signal |
+| enum member     | `id` (inline) |                         |                     |
 
 Files are recognized by **content** (`file_format: definition/2`), not by file
 name. The extension indexes every such file in your workspace folder, so
@@ -35,24 +35,24 @@ navigation works across the whole registry.
 
 ## Requirements
 
-- VS Code 1.85 or newer.
+- VS Code 1.96 or newer.
 - A workspace folder containing `definition/2` semantic-convention YAML files.
 
 ## Installation
 
-- **Marketplace:** search for *OpenTelemetry Semantic Conventions* in the
+- **Marketplace:** search for _OpenTelemetry Semantic Conventions_ in the
   Extensions view and install.
 - **From a `.vsix`:** download the package, then run
-  *Extensions: Install from VSIX…* from the Command Palette.
+  _Extensions: Install from VSIX…_ from the Command Palette.
 
 No configuration is required — open a folder with semantic-convention files and
 the features above work automatically on YAML files.
 
 ## Settings
 
-| Setting | Default | Description |
-|---|---|---|
-| `semconv.trace.server` | `off` | Log the communication between VS Code and the language server (`off` / `messages` / `verbose`). Useful when reporting an issue. |
+| Setting                | Default | Description                                                                                                                     |
+| ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `semconv.trace.server` | `off`   | Log the communication between VS Code and the language server (`off` / `messages` / `verbose`). Useful when reporting an issue. |
 
 ## Limitations
 

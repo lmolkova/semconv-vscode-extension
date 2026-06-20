@@ -8,7 +8,7 @@
   "icon": "icon.png",
   "packageManager": "pnpm@11.8.0",
   "engines": {
-    "vscode": "^1.85.0",
+    "vscode": "^1.96.0",
     "node": ">=22.13.0"
   },
   "categories": [
@@ -40,20 +40,34 @@
     "vscode:prepublish": "pnpm run build",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit && tsc -p test/integration/tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "spell": "cspell --no-progress \"**/*.{ts,mjs,md,json}\"",
     "test:unit": "vitest run",
     "test:integration": "tsc -p test/integration/tsconfig.json && node ./out/test/integration/runTest.js",
-    "test": "pnpm run typecheck && pnpm run test:unit",
+    "test": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run spell && pnpm run test:unit",
     "pretest:integration": "pnpm run build"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.96.0",
     "@vscode/test-electron": "^2.5.2",
+    "cspell": "^10.0.1",
     "esbuild": "^0.20.0",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsdoc": "^63.0.2",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "globals": "^17.6.0",
     "mocha": "^10.3.0",
+    "prettier": "^3.8.4",
     "typescript": "^5.4.0",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^1.4.0"
   },
   "dependencies": {

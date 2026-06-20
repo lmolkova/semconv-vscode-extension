@@ -5,3 +5,4 @@ dist/
 .vscode-test/
 .DS_Store
 *.log
+.claude/settings.local.json

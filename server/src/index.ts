@@ -1,5 +1,6 @@
-import { Position, Range } from 'vscode-languageserver';
-import { Definition, Reference, DefKind, SymbolAt, RESOLUTION } from './types';
+import { Position, Range } from "vscode-languageserver";
+
+import { Definition, DefKind, Reference, RESOLUTION, SymbolAt } from "./types";
 
 interface DocEntry {
   defs: Definition[];
@@ -7,19 +8,12 @@ interface DocEntry {
   hasImports: boolean;
 }
 
-/**
- * In-memory index of an entire semconv registry (all definition/2 files in the
- * workspace). Maintains id -> definitions and id -> references maps so the
- * server can answer go-to-definition / find-references across files, and is
- * updated per-document as files open, change, or are deleted.
- */
 export class RegistryIndex {
   private readonly docs = new Map<string, DocEntry>();
   private readonly defIndex = new Map<string, Definition[]>();
   private readonly refIndex = new Map<string, Reference[]>();
   private importingDocs = 0;
 
-  /** Replace all contributions from `uri` with the freshly extracted ones. */
   setDocument(uri: string, defs: Definition[], refs: Reference[], hasImports: boolean): void {
     this.removeDocument(uri);
     this.docs.set(uri, { defs, refs, hasImports });
@@ -41,43 +35,40 @@ export class RegistryIndex {
     return this.docs.has(uri);
   }
 
-  /** All definitions for `id` restricted to the given kinds. */
   definitionsFor(id: string, kinds: readonly DefKind[]): Definition[] {
     const all = this.defIndex.get(id) ?? [];
     return all.filter((d) => kinds.includes(d.kind));
   }
 
-  /** All references to `id` (optionally only those that target `defKind`). */
   referencesFor(id: string, defKind?: DefKind): Reference[] {
     const all = this.refIndex.get(id) ?? [];
     if (!defKind) return all;
     return all.filter((r) => RESOLUTION[r.refKind].includes(defKind));
   }
 
-  /** Locate the definition or reference whose token contains `position`. */
   symbolAt(uri: string, position: Position): SymbolAt | undefined {
     const entry = this.docs.get(uri);
     if (!entry) return undefined;
     for (const def of entry.defs) {
-      if (contains(def.nameRange, position)) return { kind: 'definition', def };
+      if (contains(def.nameRange, position)) return { kind: "definition", def };
     }
     for (const ref of entry.refs) {
-      if (contains(ref.range, position)) return { kind: 'reference', ref };
+      if (contains(ref.range, position)) return { kind: "reference", ref };
     }
     return undefined;
   }
 
-  /** References in `uri` that resolve to nothing local and should be flagged. */
   unresolvedReferences(uri: string): Reference[] {
-    // If any registry file imports ids from elsewhere we cannot know the full
-    // id universe, so suppress unresolved-reference diagnostics entirely.
+    // An importing registry pulls ids from elsewhere, so the local id set is
+    // incomplete and "unresolved" can't be determined — suppress entirely.
     if (this.importingDocs > 0) return [];
     const entry = this.docs.get(uri);
     if (!entry) return [];
-    return entry.refs.filter((ref) => this.definitionsFor(ref.id, RESOLUTION[ref.refKind]).length === 0);
+    return entry.refs.filter(
+      (ref) => this.definitionsFor(ref.id, RESOLUTION[ref.refKind]).length === 0,
+    );
   }
 
-  /** Definitions in `uri` whose (id, kind) is also defined elsewhere. */
   duplicateDefinitions(uri: string): Definition[] {
     const entry = this.docs.get(uri);
     if (!entry) return [];
