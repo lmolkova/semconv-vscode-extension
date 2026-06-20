@@ -10,7 +10,7 @@ export interface ManifestFinding {
 
 /**
  * Basic structural checks for a registry manifest's `dependencies`. The manifest's
- * own `schema_url` is guaranteed by `classify` (it's how a manifest is detected),
+ * own `schema_url` key is how a manifest is detected by `classify`,
  * so the only meaningful checks are on each dependency: every entry must carry its
  * required `schema_url`, and a `schema_url` must not be listed twice (it is the
  * unique identifier of the dependency registry). Returns [] for non-manifests.
