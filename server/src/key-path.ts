@@ -68,9 +68,8 @@ function search(node: unknown, offset: number, steps: PathStep[]): PathHit | und
 /**
  * If `position` sits on a YAML mapping key (or the scalar value of one), return the
  * structural schema path to that key. Returns undefined for non-key/value positions
- * or non-semconv documents. Firing only on the key token keeps this from colliding
- * with the id/ref hover, which owns id/ref value tokens.
- *
+ * or non-semconv documents. Callers should typically resolve id/ref hovers first
+ * (via `RegistryIndex.symbolAt`) and fall back to schema-key hover when no symbol matches.
  * Takes a pre-parsed document so callers can cache the AST across hovers rather than
  * re-parsing on every cursor move.
  */
