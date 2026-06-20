@@ -18,8 +18,16 @@ export interface ManifestFinding {
 export function manifestDiagnostics(parsed: ParsedSemconv): ManifestFinding[] {
   if (parsed.kind !== "manifest" || !parsed.root) return [];
   const off = parsed.offsets;
+  if (!parsed.root.has("dependencies")) return [];
   const deps = seq(parsed.root, "dependencies");
-  if (!deps) return [];
+  if (!deps) {
+    return [
+      {
+        range: nodeRange(parsed.root.get("dependencies", true), off),
+        message: "Manifest 'dependencies' must be a list of dependency entries.",
+      },
+    ];
+  }
 
   const findings: ManifestFinding[] = [];
   const seen = new Set<string>();

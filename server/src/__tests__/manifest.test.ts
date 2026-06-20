@@ -50,12 +50,31 @@ dependencies:
     expect(found[0].message).toMatch(/must be a mapping/);
   });
 
+  it("flags a non-list dependencies value", () => {
+    const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+dependencies:
+  schema_url: https://opentelemetry.io/schemas/other/1.0.0
+`;
+    const found = diags(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/must be a list/);
+  });
+
   it("returns nothing for a definition file", () => {
     const text = `file_format: definition/2
 attributes:
   - key: a.b
     type: string
     stability: development
+`;
+    expect(diags(text)).toEqual([]);
+  });
+
+  it("does not treat a file with an unknown file_format as a manifest", () => {
+    const text = `file_format: definition/99
+schema_url: https://opentelemetry.io/schemas/test/0.1.0
+dependencies:
+  - just-a-string
 `;
     expect(diags(text)).toEqual([]);
   });

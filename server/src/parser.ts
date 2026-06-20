@@ -53,7 +53,11 @@ export interface ParsedSemconv {
 /** A definition file declares `file_format`; a manifest carries `schema_url` and no format. */
 function classify(root: YAMLMap | undefined): DocKind | undefined {
   if (!root) return undefined;
-  if (readScalar(root, "file_format") === FILE_FORMAT_V2) return "definition";
+  // `file_format` is exclusive to definition files; a manifest never declares one.
+  // An unrecognized format is an unknown definition, not a manifest, even with a `schema_url`.
+  if (root.has("file_format")) {
+    return readScalar(root, "file_format") === FILE_FORMAT_V2 ? "definition" : undefined;
+  }
   if (root.has("schema_url")) return "manifest";
   return undefined;
 }
