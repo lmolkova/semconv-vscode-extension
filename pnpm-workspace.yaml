@@ -14,3 +14,6 @@ minimumReleaseAge: 10080
 # to compile (e.g. native addons). esbuild ships a platform binary and needs it.
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  # Renovate security update: vitest@3.2.6
+  - vitest@3.2.6
