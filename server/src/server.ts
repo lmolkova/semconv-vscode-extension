@@ -264,6 +264,9 @@ function renderKeyHover(key: string, info: KeyDoc): string {
 function renderEnumValueHover(key: string, value: string, info: KeyDoc): string {
   const lines: string[] = [`**${value}** — a \`${key}\` value`];
   if (info.description) lines.push("", info.description);
+  if (info.enumValues?.length) {
+    lines.push("", `Allowed values: ${info.enumValues.map((v) => `\`${v}\``).join(", ")}`);
+  }
   return lines.join("\n");
 }
 
