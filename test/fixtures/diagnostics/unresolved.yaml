@@ -1,0 +1,14 @@
+file_format: definition/2
+# A self-standing definition/2 file with a deliberately broken attribute
+# reference, used by the unresolved-reference diagnostics tests. It lives
+# outside test/fixtures/registry so `weaver registry check` (which would reject
+# the dangling ref) stays green; the sibling registry supplies the resolvable
+# refs when both folders are indexed together.
+attribute_groups:
+  - id: attributes.diagnostics
+    visibility: internal
+    attributes:
+      - ref: gen_ai.provider.name
+        requirement_level: recommended
+      - ref: gen_ai.does.not.exist
+        requirement_level: recommended

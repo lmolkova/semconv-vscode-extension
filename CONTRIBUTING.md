@@ -42,10 +42,29 @@ Press **F5** ("Run Extension") to launch an Extension Development Host against
   - `parser.ts` — YAML → AST with source offsets (via the `yaml` library).
   - `model.ts` — AST → `Definition[]` / `Reference[]` for one document.
   - `index.ts` — `RegistryIndex`: cross-file id → definitions / references.
+  - `key-path.ts` — maps a cursor position to the structural schema path of the
+    YAML key (or value) under it.
+  - `schema-resolver.ts` — looks up a key's docs (description, allowed enum
+    values) in the bundled JSON schema; powers hover on schema keys/enum values.
   - `server.ts` — LSP wiring (definition, references, hover, diagnostics, scan).
 
 Both entry points are bundled by [esbuild.mjs](esbuild.mjs) into `out/`, with
-`vscode` left external (provided by the host at runtime).
+`vscode` left external (provided by the host at runtime). The vendored schema
+JSON is inlined into the server bundle, so no extra asset ships.
+
+## Vendored schema
+
+`server/src/schema/semconv.schema.v2.json` is the official Weaver `definition/2`
+JSON schema, vendored at a pinned Weaver release. It is **generated** — don't edit
+it by hand. The pinned tag lives in [scripts/weaver-version.mjs](scripts/weaver-version.mjs)
+(`WEAVER_VERSION`) and is the single source of truth — shared by `pnpm sync-schema`
+(which re-downloads the JSON for that tag) and `pnpm check-registry` (below).
+
+Renovate watches the tag (a `customManager` in [renovate.json](renovate.json)) and
+opens a PR when Weaver publishes a new release. That PR only bumps `WEAVER_VERSION`,
+so CI re-runs `pnpm sync-schema` and fails the **drift check** (`git diff --exit-code`)
+until the regenerated JSON is committed. On such a PR: run `pnpm sync-schema` locally,
+review the schema diff, and commit it.
 
 ## Tests
 
@@ -57,6 +76,13 @@ Both entry points are bundled by [esbuild.mjs](esbuild.mjs) into `out/`, with
   If you run it from inside an Electron-based terminal, first
   `unset ELECTRON_RUN_AS_NODE`, otherwise the downloaded VS Code launches as plain
   Node instead of as an editor.
+
+- **Registry validation** (`pnpm check-registry`): runs `weaver registry check`
+  on `test/fixtures/registry` via the pinned `otel/weaver` Docker image (so only
+  Docker is needed, no host Weaver), keeping the fixtures valid `definition/2`
+  semconv. The deliberately broken ref the diagnostics tests rely on lives in
+  `test/fixtures/diagnostics/` — outside the validated registry — so it doesn't
+  trip the check. CI runs this as the `registry` job.
 
 ## Releasing
 

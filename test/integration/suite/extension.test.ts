@@ -2,8 +2,10 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 
-const REG = path.resolve(__dirname, "../../../../test/fixtures/registry");
+const FIXTURES = path.resolve(__dirname, "../../../../test/fixtures");
+const REG = path.join(FIXTURES, "registry");
 const uri = (name: string) => vscode.Uri.file(path.join(REG, name));
+const diagnosticsUri = (name: string) => vscode.Uri.file(path.join(FIXTURES, "diagnostics", name));
 
 // Poll because the server indexes the workspace asynchronously.
 async function eventually<T>(
@@ -74,11 +76,11 @@ suite("semconv language features", () => {
   });
 
   test("Diagnostics flag the deliberately broken ref", async () => {
-    const spansUri = uri("spans.yaml");
-    await vscode.workspace.openTextDocument(spansUri);
+    const brokenUri = diagnosticsUri("unresolved.yaml");
+    await vscode.workspace.openTextDocument(brokenUri);
 
     const diags = await eventually(
-      () => vscode.languages.getDiagnostics(spansUri),
+      () => vscode.languages.getDiagnostics(brokenUri),
       (d) => d.some((x) => x.message.includes("gen_ai.does.not.exist")),
     );
 

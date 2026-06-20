@@ -16,7 +16,10 @@ attribute_groups:
         requirement_level: recommended
 spans:
   - type: gen_ai.inference.client
+    requirement_level: recommended
     kind: client
+    name:
+      note: Span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`.
     stability: development
     brief: A client call to a Generative AI model or service.
     entity_associations:
@@ -26,9 +29,6 @@ spans:
       - ref_group: attributes.gen_ai.address_and_port
       - ref: gen_ai.provider.name
         requirement_level: required
-      # Deliberately broken reference, used by the diagnostics test.
-      - ref: gen_ai.does.not.exist
-        requirement_level: recommended
 span_refinements:
   - id: openai.inference.client
     ref: gen_ai.inference.client

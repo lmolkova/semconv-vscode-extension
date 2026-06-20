@@ -21,8 +21,10 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 
 import { RegistryIndex } from "./index";
+import { pathAtParsed } from "./key-path";
 import { extract } from "./model";
-import { looksLikeSemconv } from "./parser";
+import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
+import { describeKeyPath, KeyDoc } from "./schema-resolver";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -30,6 +32,16 @@ const documents = new TextDocuments(TextDocument);
 const index = new RegistryIndex();
 
 let workspaceRoots: string[] = [];
+
+const parseCache = new Map<string, { version: number; parsed: ParsedSemconv }>();
+
+function parsedFor(doc: TextDocument): ParsedSemconv {
+  const cached = parseCache.get(doc.uri);
+  if (cached && cached.version === doc.version) return cached.parsed;
+  const parsed = parseSemconv(doc.getText());
+  parseCache.set(doc.uri, { version: doc.version, parsed });
+  return parsed;
+}
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   workspaceRoots = (params.workspaceFolders ?? [])
@@ -109,6 +121,7 @@ connection.onDidChangeWatchedFiles((params) => {
 });
 
 documents.onDidClose((event) => {
+  parseCache.delete(event.document.uri);
   // Keep the on-disk version indexed so cross-file nav still works.
   scanFile(event.document.uri).catch(() => undefined);
 });
@@ -179,28 +192,53 @@ connection.onReferences((params: ReferenceParams): Location[] => {
 
 connection.onHover((params: HoverParams): Hover | null => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
-  if (!symbol) return null;
-
-  let def: Definition | undefined;
-  if (symbol.kind === "definition") {
-    def = symbol.def;
-  } else {
-    def = index.definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])[0];
-  }
-  if (!def) {
-    if (symbol.kind === "reference") {
-      return {
-        contents: {
-          kind: MarkupKind.Markdown,
-          value: `**${symbol.ref.id}**\n\n_unresolved reference_`,
-        },
-      };
+  if (symbol) {
+    let def: Definition | undefined;
+    if (symbol.kind === "definition") {
+      def = symbol.def;
+    } else {
+      def = index.definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])[0];
     }
-    return null;
+    if (!def) {
+      if (symbol.kind === "reference") {
+        return {
+          contents: {
+            kind: MarkupKind.Markdown,
+            value: `**${symbol.ref.id}**\n\n_unresolved reference_`,
+          },
+        };
+      }
+      return null;
+    }
+    return { contents: { kind: MarkupKind.Markdown, value: renderHover(def) } };
   }
 
-  return { contents: { kind: MarkupKind.Markdown, value: renderHover(def) } };
+  // No id/ref symbol here — try schema-key (or enum-value) hover.
+  return schemaHover(params);
 });
+
+/** Hover docs for a YAML schema key, or an enum value, pulled from the bundled schema. */
+function schemaHover(params: HoverParams): Hover | null {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return null;
+  const hit = pathAtParsed(parsedFor(doc), params.position);
+  if (!hit) return null;
+  const info = describeKeyPath(hit.steps);
+  if (!info) return null;
+
+  if (hit.onValue) {
+    // Annotate a value only when its field is a closed enum and the value is a member.
+    if (!hit.value || !info.enumValues?.includes(hit.value)) return null;
+    return {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value: renderEnumValueHover(hit.key, hit.value, info),
+      },
+    };
+  }
+  if (!info.description && !info.enumValues) return null;
+  return { contents: { kind: MarkupKind.Markdown, value: renderKeyHover(hit.key, info) } };
+}
 
 function renderHover(def: Definition): string {
   const lines: string[] = [`**${def.id}** \`${def.kind}\``];
@@ -211,6 +249,24 @@ function renderHover(def: Definition): string {
   if (def.stability) meta.push(`stability: \`${def.stability}\``);
   if (meta.length) lines.push(meta.join(" · "));
   if (def.brief) lines.push("", def.brief);
+  return lines.join("\n");
+}
+
+function renderKeyHover(key: string, info: KeyDoc): string {
+  const lines: string[] = [`**${key}**${info.deprecated ? " _(deprecated)_" : ""}`];
+  if (info.description) lines.push("", info.description);
+  if (info.enumValues?.length) {
+    lines.push("", `Allowed values: ${info.enumValues.map((v) => `\`${v}\``).join(", ")}`);
+  }
+  return lines.join("\n");
+}
+
+function renderEnumValueHover(key: string, value: string, info: KeyDoc): string {
+  const lines: string[] = [`**${value}** — a \`${key}\` value`];
+  if (info.description) lines.push("", info.description);
+  if (info.enumValues?.length) {
+    lines.push("", `Allowed values: ${info.enumValues.map((v) => `\`${v}\``).join(", ")}`);
+  }
   return lines.join("\n");
 }
 

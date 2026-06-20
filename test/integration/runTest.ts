@@ -5,7 +5,9 @@ async function main(): Promise<void> {
   try {
     const extensionDevelopmentPath = path.resolve(__dirname, "../../..");
     const extensionTestsPath = path.resolve(__dirname, "./suite/index");
-    const workspace = path.resolve(extensionDevelopmentPath, "test/fixtures/registry");
+    // Open the whole fixtures tree: the valid registry plus the sibling
+    // diagnostics/ fixture that carries the deliberately broken ref.
+    const workspace = path.resolve(extensionDevelopmentPath, "test/fixtures");
 
     await runTests({
       // Pin a known-good build; newer VS Code + older test-electron combos

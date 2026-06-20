@@ -21,7 +21,8 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 - **Find All References** — from any attribute/group/signal id to every place it
   is referenced in the registry.
 - **Hover** — see the id, kind, type/stability/unit, and brief of the referenced
-  entity.
+  entity. Hovering a schema field (`key`, `stability`, `instrument`, …) or an enum
+  value shows its description and allowed values, straight from the official schema.
 - **Diagnostics** — unresolved references and duplicate definitions, flagged
   inline.
 

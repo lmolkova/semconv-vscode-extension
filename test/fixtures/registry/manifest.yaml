@@ -1,0 +1,2 @@
+schema_url: https://opentelemetry.io/schemas/test/0.1.0
+description: Test fixture registry for the semconv language server.

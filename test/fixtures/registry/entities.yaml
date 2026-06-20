@@ -1,8 +1,12 @@
 file_format: definition/2
 entities:
   - type: gen_ai.agent
+    requirement_level: recommended
     stability: development
     brief: A GenAI agent entity.
-    attributes:
+    identity:
+      - ref: gen_ai.agent.id
+        requirement_level: recommended
+    description:
       - ref: gen_ai.provider.name
         requirement_level: recommended

@@ -30,5 +30,15 @@
   "vulnerabilityAlerts": {
     "labels": ["security"],
     "minimumReleaseAge": null
-  }
+  },
+  "customManagers": [
+    {
+      "description": "Track the Weaver release the vendored semconv JSON schema is pinned to",
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts/weaver-version\\.mjs$/"],
+      "matchStrings": [
+        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+export const WEAVER_VERSION = \"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ]
 }

@@ -46,14 +46,28 @@ is ignored.
 - [ ] Advertise `completionProvider` (with `:` / space trigger chars) in the server
       capabilities in [server/src/server.ts](server/src/server.ts).
 
+## Validate documents against the bundled JSON schema
+
+Today the extension only flags unresolved/duplicate references; it does not check
+that a `definition/2` document is structurally valid. Weaver catches these in CI
+(see the `registry` job / `pnpm check-registry`), but the editor stays silent on
+e.g. a span missing `name`, an entity using `attributes:` instead of
+`identity:`, or unknown fields — exactly the kinds of violations that had to be
+fixed in `test/fixtures/registry`.
+
+- [ ] Validate each open `definition/2` document against the bundled
+      `server/src/schema/semconv.schema.v2.json` (e.g. with `ajv`) and publish the
+      structural errors (missing required fields, unknown properties, bad enums)
+      as diagnostics, mapped back to the offending YAML node's range.
+- [ ] Reconcile with the existing reference diagnostics in `server/src/server.ts`
+      so schema and resolution errors surface together without duplication.
+
 ## Integrate with Weaver
 
 - [ ] Surface `weaver registry check` results as diagnostics (run the Weaver CLI and
       map its output back to ranges) so editor warnings match CI.
 - [ ] Read `weaver.yaml` / registry manifest to discover the registry root, included
       paths, and dependency resolution rather than scanning blindly.
-- [ ] Optionally validate documents against the bundled
-      `semconv.schema.v2.json` (structural errors, unknown fields).
 - [ ] Consider a command to run Weaver codegen / live-resolve from within VS Code.
 
 ## Publish to the extension marketplaces (release phase 2)

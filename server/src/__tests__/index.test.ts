@@ -6,6 +6,7 @@ import { RegistryIndex } from "../index";
 import { extract } from "../model";
 
 const REG = path.join(process.cwd(), "test/fixtures/registry");
+const DIAG = path.join(process.cwd(), "test/fixtures/diagnostics");
 const uriOf = (name: string) => `file://${path.join(REG, name)}`;
 
 function buildIndex(): RegistryIndex {
@@ -16,6 +17,16 @@ function buildIndex(): RegistryIndex {
     idx.setDocument(uriOf(name), defs, refs, hasImports);
   }
   return idx;
+}
+
+// The deliberately broken ref lives outside the (weaver-validated) registry; its
+// resolvable refs still resolve against the registry once both are indexed.
+function indexDiagnosticsFixture(idx: RegistryIndex): string {
+  const uri = `file://${path.join(DIAG, "unresolved.yaml")}`;
+  const text = fs.readFileSync(path.join(DIAG, "unresolved.yaml"), "utf8");
+  const { defs, refs, hasImports } = extract(text, uri);
+  idx.setDocument(uri, defs, refs, hasImports);
+  return uri;
 }
 
 describe("RegistryIndex – cross-file resolution", () => {
@@ -76,15 +87,18 @@ describe("RegistryIndex – symbolAt", () => {
 describe("RegistryIndex – diagnostics rules", () => {
   it("flags an unresolved reference in a self-contained registry", () => {
     const idx = buildIndex();
-    const unresolved = idx.unresolvedReferences(uriOf("spans.yaml"));
+    const diag = indexDiagnosticsFixture(idx);
+    const unresolved = idx.unresolvedReferences(diag);
     expect(unresolved.map((r) => r.id)).toContain("gen_ai.does.not.exist");
     expect(unresolved.map((r) => r.id)).not.toContain("gen_ai.provider.name");
   });
 
   it("suppresses unresolved diagnostics when any registry file imports", () => {
     const idx = buildIndex();
+    const diag = indexDiagnosticsFixture(idx);
+    expect(idx.unresolvedReferences(diag).length).toBeGreaterThan(0);
     idx.setDocument(uriOf("imports.yaml"), [], [], /* hasImports */ true);
-    expect(idx.unresolvedReferences(uriOf("spans.yaml"))).toHaveLength(0);
+    expect(idx.unresolvedReferences(diag)).toHaveLength(0);
   });
 
   it("detects duplicate definitions", () => {
