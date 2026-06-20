@@ -21,18 +21,16 @@ declares an `imports` section (because the imported id universe is unknown).
 
 ## Support definition manifest files
 
-The parser today only recognizes `file_format: definition/2` documents; the
-registry's `manifest.yaml` (name, description, schema base url, dependency list)
-is ignored.
+Manifest files (no `file_format`, identified by `schema_url`) are recognized as a
+first-class document kind, with schema-driven **hover** for their fields and enum
+values (from the vendored `definition-manifest.v2.json`) and **basic diagnostics**
+for malformed/duplicate dependency entries. The remaining work is consuming the
+manifest for cross-registry resolution.
 
-- [ ] Detect and parse `manifest.yaml` (registry metadata + `dependencies`) as a
-      first-class document type alongside `definition/2`.
 - [ ] Use the manifest to discover the registry root and the dependency list that
       feeds cross-registry import resolution (see _Support dependencies_ above).
 - [ ] Go-to-definition / hover on a dependency entry — jump to or describe the
       resolved registry.
-- [ ] Basic diagnostics for the manifest (missing/duplicate name, malformed
-      dependency entries).
 
 ## Support autocomplete
 

@@ -25,8 +25,8 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
   value shows its description and allowed values, straight from the official schema.
   Field hover also works in registry **manifest** files (`schema_url`,
   `dependencies`, `stability`, …).
-- **Diagnostics** — unresolved references and duplicate definitions, flagged
-  inline.
+- **Diagnostics** — unresolved references and duplicate definitions, plus
+  malformed or duplicate manifest dependency entries, flagged inline.
 
 ### What links to what
 
@@ -42,7 +42,7 @@ Files are recognized by **content**, not by file name: definition files declare
 `file_format: definition/2`, and a registry manifest is identified by its
 `schema_url` (with no `file_format`). The extension indexes every definition file
 in your workspace folder, so navigation works across the whole registry; manifest
-files get field hover only.
+files get field hover and dependency diagnostics.
 
 ## Requirements
 

@@ -1,5 +1,5 @@
 import { Position, Range } from "vscode-languageserver";
-import { Document, isMap, isScalar, parseDocument, Scalar, YAMLMap } from "yaml";
+import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, YAMLMap, YAMLSeq } from "yaml";
 
 const FILE_FORMAT_V2 = "definition/2";
 
@@ -84,4 +84,27 @@ export function readScalar(map: YAMLMap, key: string): string | undefined {
 export function scalarNode(map: YAMLMap, key: string): Scalar | undefined {
   const node = map.get(key, true);
   return isScalar(node) ? node : undefined;
+}
+
+export function seq(map: YAMLMap, key: string): YAMLSeq | undefined {
+  const node = map.get(key, true);
+  return isSeq(node) ? node : undefined;
+}
+
+export function mapItems(s: YAMLSeq | undefined): YAMLMap[] {
+  return s ? s.items.filter(isMap) : [];
+}
+
+const Range0: Range = Range.create(0, 0, 0, 0);
+
+/** Range of a scalar's value token, or a zero range when source positions are missing. */
+export function tokenRange(node: Scalar, off: OffsetConverter): Range {
+  const r = node.range;
+  return r ? off.range(r[0], r[1]) : Range0;
+}
+
+/** Full range of any node (key/value/item), spanning to its node end. */
+export function nodeRange(node: unknown, off: OffsetConverter): Range {
+  const r = (node as { range?: [number, number, number] | null } | null)?.range;
+  return r ? off.range(r[0], r[2]) : Range0;
 }

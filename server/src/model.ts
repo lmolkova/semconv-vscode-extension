@@ -1,6 +1,14 @@
-import { isMap, isSeq, Scalar, YAMLMap, YAMLSeq } from "yaml";
+import { isMap, Scalar, YAMLMap, YAMLSeq } from "yaml";
 
-import { OffsetConverter, parseSemconv, readScalar, scalarNode } from "./parser";
+import {
+  mapItems,
+  OffsetConverter,
+  parseSemconv,
+  readScalar,
+  scalarNode,
+  seq,
+  tokenRange,
+} from "./parser";
 import { Definition, DefKind, Reference, RefKind } from "./types";
 
 export interface ExtractResult {
@@ -55,29 +63,6 @@ interface Ctx {
   defs: Definition[];
   refs: Reference[];
 }
-
-function seq(map: YAMLMap, key: string): YAMLSeq | undefined {
-  const node = map.get(key, true);
-  return isSeq(node) ? node : undefined;
-}
-
-function mapItems(s: YAMLSeq | undefined): YAMLMap[] {
-  if (!s) return [];
-  return s.items.filter(isMap);
-}
-
-function tokenRange(node: Scalar, off: OffsetConverter) {
-  const r = node.range;
-  if (!r) {
-    return Range0;
-  }
-  return off.range(r[0], r[1]);
-}
-
-const Range0 = {
-  start: { line: 0, character: 0 },
-  end: { line: 0, character: 0 },
-};
 
 function makeDef(map: YAMLMap, idField: string, kind: DefKind, ctx: Ctx): Definition | undefined {
   const idNode = scalarNode(map, idField);

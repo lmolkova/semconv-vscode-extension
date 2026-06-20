@@ -9,4 +9,5 @@ User-facing changes to the extension. Newest first.
   signal refinements).
 - Hover for fields and enum values in registry manifest files (identified by
   `schema_url`).
-- Diagnostics for unresolved references and duplicate definitions.
+- Diagnostics for unresolved references and duplicate definitions, plus malformed
+  or duplicate manifest dependency entries.

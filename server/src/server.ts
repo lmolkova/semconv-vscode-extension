@@ -22,6 +22,7 @@ import { URI } from "vscode-uri";
 
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
+import { manifestDiagnostics } from "./manifest";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
@@ -154,6 +155,15 @@ function validate(doc: TextDocument): void {
       severity: DiagnosticSeverity.Warning,
       range: def.nameRange,
       message: `Duplicate ${def.kind} definition: '${def.id}' is defined more than once.`,
+      source: "semconv",
+    });
+  }
+
+  for (const finding of manifestDiagnostics(parsedFor(doc))) {
+    diagnostics.push({
+      severity: DiagnosticSeverity.Warning,
+      range: finding.range,
+      message: finding.message,
       source: "semconv",
     });
   }
