@@ -1,0 +1,67 @@
+{
+  "name": "semconv-lang-server",
+  "displayName": "OpenTelemetry Semantic Conventions (definition/2)",
+  "description": "Language support (go to definition, find references, hover, diagnostics) for OpenTelemetry semantic conventions definition/2 YAML files.",
+  "version": "0.1.0",
+  "publisher": "lmolkova",
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=22.13.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "main": "./out/client/extension.js",
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Semantic Conventions Language Server",
+      "properties": {
+        "semconv.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Log the communication between VS Code and the semconv language server. Use 'messages' or 'verbose' when reporting an issue."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "test:unit": "vitest run",
+    "test:integration": "tsc -p test/integration/tsconfig.json && node ./out/test/integration/runTest.js",
+    "test": "pnpm run typecheck && pnpm run test:unit",
+    "pretest:integration": "pnpm run build"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.20.0",
+    "mocha": "^10.3.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-uri": "^3.0.8",
+    "yaml": "^2.4.1"
+  }
+}

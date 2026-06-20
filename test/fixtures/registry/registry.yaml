@@ -1,0 +1,31 @@
+file_format: definition/2
+attributes:
+  - key: gen_ai.provider.name
+    type:
+      members:
+        - id: openai
+          stability: development
+          value: "openai"
+          brief: '[OpenAI](https://openai.com/)'
+        - id: anthropic
+          stability: development
+          value: "anthropic"
+          brief: '[Anthropic](https://www.anthropic.com/)'
+    stability: development
+    brief: The Generative AI provider as identified by the client or server instrumentation.
+  - key: gen_ai.operation.name
+    type: string
+    stability: development
+    brief: The name of the operation being performed.
+  - key: gen_ai.request.model
+    type: string
+    stability: development
+    brief: The name of the GenAI model a request is being made to.
+  - key: server.address
+    type: string
+    stability: stable
+    brief: Server domain name, IP address or Unix domain socket name.
+  - key: server.port
+    type: int
+    stability: stable
+    brief: Server port number.

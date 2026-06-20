@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "../out/client",
+    "types": ["node", "vscode"]
+  },
+  "include": ["src/**/*.ts"]
+}

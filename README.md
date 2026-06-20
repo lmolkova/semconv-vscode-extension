@@ -1,0 +1,69 @@
+# OpenTelemetry Semantic Conventions (`definition/2`)
+
+IDE language support for OpenTelemetry [Weaver](https://github.com/open-telemetry/weaver)
+semantic-convention YAML files that declare `file_format: definition/2`
+([schema](https://github.com/open-telemetry/weaver/blob/main/schemas/semconv.schema.v2.json)).
+
+Navigate and validate a semantic-convention registry the same way you would a
+codebase — jump to where an attribute is defined, find everywhere it's used, and
+catch broken references as you type.
+
+## Features
+
+- **Go to Definition** — jump from a `ref` / `ref_group` / `entity_associations` /
+  refinement `ref` to the entity that defines that id, across files.
+- **Find All References** — from any attribute/group/signal id to every place it
+  is referenced in the registry.
+- **Hover** — see the id, kind, type/stability/unit, and brief of the referenced
+  entity.
+- **Diagnostics** — unresolved references and duplicate definitions, flagged
+  inline.
+
+### What links to what
+
+| Definition | id field | Reference | Resolves to |
+|---|---|---|---|
+| attribute | `key` | `ref` | attribute |
+| attribute_group | `id` | `ref_group` | attribute_group |
+| entity / span | `type` | `entity_associations[]` | entity |
+| event / metric | `name` | `*_refinements[].ref` | the matching signal |
+| enum member | `id` (inline) | | |
+
+Files are recognized by **content** (`file_format: definition/2`), not by file
+name. The extension indexes every such file in your workspace folder, so
+navigation works across the whole registry.
+
+## Requirements
+
+- VS Code 1.85 or newer.
+- A workspace folder containing `definition/2` semantic-convention YAML files.
+
+## Installation
+
+- **Marketplace:** search for *OpenTelemetry Semantic Conventions* in the
+  Extensions view and install.
+- **From a `.vsix`:** download the package, then run
+  *Extensions: Install from VSIX…* from the Command Palette.
+
+No configuration is required — open a folder with semantic-convention files and
+the features above work automatically on YAML files.
+
+## Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `semconv.trace.server` | `off` | Log the communication between VS Code and the language server (`off` / `messages` / `verbose`). Useful when reporting an issue. |
+
+## Limitations
+
+Not yet supported: completion in `ref:`, rename, document symbols, cross-registry
+resolution, and the legacy `definition/1` (`groups:`) format.
+
+## Contributing
+
+Bug reports and contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the development setup, architecture, and tests.
+
+## License
+
+[Apache-2.0](LICENSE).

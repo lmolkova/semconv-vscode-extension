@@ -1,0 +1,21 @@
+# Source — only the bundled output in out/ ships
+client/**
+server/**
+test/**
+**/*.ts
+**/tsconfig*.json
+
+# Build / tooling config
+esbuild.mjs
+.vscode/**
+.github/**
+node_modules/**
+
+# Dev artifacts
+.vscode-test/**
+**/*.map
+*.vsix
+*.log
+.DS_Store
+.gitignore
+.git/**

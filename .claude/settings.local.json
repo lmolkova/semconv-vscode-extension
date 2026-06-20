@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -fsSL -o /Users/lmolkova/repo/semconv-lang-server/icon.png \"https://raw.githubusercontent.com/open-telemetry/opentelemetry.io/main/static/img/logos/opentelemetry-icon-color.png\")"
+    ]
+  }
+}

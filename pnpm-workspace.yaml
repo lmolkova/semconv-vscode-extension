@@ -1,0 +1,16 @@
+# pnpm settings (pnpm 11+). This repo is a single package; the file exists only
+# to hold supply-chain hardening settings, which now live here rather than .npmrc.
+
+# Delay installing newly published versions to widen the window for a malicious
+# or compromised release to be caught before it reaches us. Value is in MINUTES.
+# 10080 = 7 days. (pnpm 11 defaults this to 1440 / 1 day; we raise it to a week.)
+minimumReleaseAge: 10080
+
+# Allowlist of dependencies permitted to run install/build lifecycle scripts.
+# Everything else is blocked by default (strictDepBuilds), so a malicious
+# postinstall in some transitive package cannot execute on `pnpm install`.
+# `pnpm install` will append `false` entries here for any blocked build script —
+# review each one and flip to `true` only if you trust it and it genuinely needs
+# to compile (e.g. native addons). esbuild ships a platform binary and needs it.
+allowBuilds:
+  esbuild: true

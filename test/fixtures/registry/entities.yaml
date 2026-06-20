@@ -1,0 +1,8 @@
+file_format: definition/2
+entities:
+  - type: gen_ai.agent
+    stability: development
+    brief: A GenAI agent entity.
+    attributes:
+      - ref: gen_ai.provider.name
+        requirement_level: recommended

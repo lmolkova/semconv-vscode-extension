@@ -1,0 +1,39 @@
+file_format: definition/2
+attribute_groups:
+  - id: attributes.gen_ai.common
+    visibility: internal
+    attributes:
+      - ref: gen_ai.request.model
+        requirement_level: recommended
+      - ref: gen_ai.operation.name
+        requirement_level: required
+  - id: attributes.gen_ai.address_and_port
+    visibility: internal
+    attributes:
+      - ref: server.address
+        requirement_level: recommended
+      - ref: server.port
+        requirement_level: recommended
+spans:
+  - type: gen_ai.inference.client
+    kind: client
+    stability: development
+    brief: A client call to a Generative AI model or service.
+    entity_associations:
+      - gen_ai.agent
+    attributes:
+      - ref_group: attributes.gen_ai.common
+      - ref_group: attributes.gen_ai.address_and_port
+      - ref: gen_ai.provider.name
+        requirement_level: required
+      # Deliberately broken reference, used by the diagnostics test.
+      - ref: gen_ai.does.not.exist
+        requirement_level: recommended
+span_refinements:
+  - id: openai.inference.client
+    ref: gen_ai.inference.client
+    stability: development
+    brief: OpenAI-specific refinement of the inference client span.
+    attributes:
+      - ref: gen_ai.request.model
+        requirement_level: required
