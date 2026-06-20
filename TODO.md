@@ -56,6 +56,29 @@ is ignored.
       `semconv.schema.v2.json` (structural errors, unknown fields).
 - [ ] Consider a command to run Weaver codegen / live-resolve from within VS Code.
 
+## Publish to the extension marketplaces (release phase 2)
+
+Phase 1 is done: tagging `vX.Y.Z` (matching `package.json` `version`) runs
+[.github/workflows/release.yml](.github/workflows/release.yml), which builds the
+`.vsix` and attaches it to a GitHub Release. Users install it via
+`code --install-extension <file>.vsix` or the Extensions panel's "Install from VSIX…".
+
+Phase 2 turns those releases into Marketplace publishes — same `vsce package`
+output, plus publish steps and credentials:
+
+- [ ] Register the `lmolkova` publisher on the VS Code Marketplace and create an
+      Azure DevOps Personal Access Token (Marketplace → Manage publish access).
+      Store it as the `VSCE_PAT` GitHub Actions secret.
+- [ ] Add `vsce publish --no-dependencies -p $VSCE_PAT` to the release job (after
+      packaging). `VSCE_PAT` via env means no `keytar` / interactive login —
+      keep `keytar` and `@vscode/vsce-sign` builds disabled in `pnpm-workspace.yaml`.
+- [ ] (Optional) Also publish to the Open VSX Registry for VSCodium / Cursor /
+      Gitpod: add the `ovsx` dep + `ovsx publish -p $OVSX_PAT` and an `OVSX_PAT`
+      secret from open-vsx.org.
+- [ ] Decide a version-bump flow (manual bump + tag, or a release bot) so the tag
+      guard in the workflow stays satisfied.
+- [ ] (Optional) Pre-release channel via `vsce publish --pre-release` for insider builds.
+
 ## Other features
 
 - [ ] **Rename** — rename an attribute key / group id and update every reference

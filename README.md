@@ -8,6 +8,12 @@ Navigate and validate a semantic-convention registry the same way you would a
 codebase — jump to where an attribute is defined, find everywhere it's used, and
 catch broken references as you type.
 
+> **Unofficial.** This is an unofficial project and is not
+> endorsed by the OpenTelemetry project.
+
+Built for registries authored with [Weaver](https://github.com/open-telemetry/weaver),
+such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semantic-conventions-genai).
+
 ## Features
 
 - **Go to Definition** — jump from a `ref` / `ref_group` / `entity_associations` /

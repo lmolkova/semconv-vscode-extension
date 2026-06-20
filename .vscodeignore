@@ -2,14 +2,29 @@
 client/**
 server/**
 test/**
+out/test/**
 **/*.ts
 **/tsconfig*.json
 
 # Build / tooling config
 esbuild.mjs
+eslint.config.mjs
+.prettierignore
+.prettierrc.json
+cspell.json
+renovate.json
+.nvmrc
+pnpm-lock.yaml
+pnpm-workspace.yaml
 .vscode/**
 .github/**
 node_modules/**
+
+# Dev docs (README ships; these don't)
+AGENTS.md
+CLAUDE.md
+CONTRIBUTING.md
+TODO.md
 
 # Dev artifacts
 .vscode-test/**

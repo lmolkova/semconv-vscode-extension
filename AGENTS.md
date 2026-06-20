@@ -45,3 +45,6 @@ Hardening is in `pnpm-workspace.yaml`: `minimumReleaseAge: 10080` (1wk) and `all
 
 - `README.md` is user-facing (VS Code Marketplace description). Keep internal details and dev/build process **out** of it — those belong in `CONTRIBUTING.md`.
 - `CONTRIBUTING.md` is the human-oriented version of this file.
+- `CHANGELOG.md` ships in the `.vsix` (Marketplace "Changelog" tab). Add an entry
+  **only** for user-facing changes and bugfixes — never for refactors, tests,
+  tooling, or build/CI changes. Newest version on top.

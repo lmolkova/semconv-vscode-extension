@@ -19,6 +19,8 @@
     "referenceprovider",
     "esbuild",
     "vsce",
+    "ovsx",
+    "keytar",
     "vscodeignore",
     "renovate",
     "corepack",
