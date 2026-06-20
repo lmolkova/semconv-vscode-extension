@@ -178,25 +178,31 @@ function extractRefinements(
   }
 }
 
+// `attributes` carries refs on groups/spans/metrics/events; entities instead
+// list their refs under `identity` and `description`.
+const ATTRIBUTE_REF_FIELDS = ["attributes", "identity", "description"];
+
 function extractAttributeRefs(owner: YAMLMap, ctx: Ctx): void {
-  for (const item of mapItems(seq(owner, "attributes"))) {
-    const ref = scalarNode(item, "ref");
-    if (ref && typeof ref.value === "string") {
-      ctx.refs.push({
-        refKind: "attribute_ref",
-        id: ref.value,
-        uri: ctx.uri,
-        range: tokenRange(ref, ctx.off),
-      });
-    }
-    const refGroup = scalarNode(item, "ref_group");
-    if (refGroup && typeof refGroup.value === "string") {
-      ctx.refs.push({
-        refKind: "group_ref",
-        id: refGroup.value,
-        uri: ctx.uri,
-        range: tokenRange(refGroup, ctx.off),
-      });
+  for (const field of ATTRIBUTE_REF_FIELDS) {
+    for (const item of mapItems(seq(owner, field))) {
+      const ref = scalarNode(item, "ref");
+      if (ref && typeof ref.value === "string") {
+        ctx.refs.push({
+          refKind: "attribute_ref",
+          id: ref.value,
+          uri: ctx.uri,
+          range: tokenRange(ref, ctx.off),
+        });
+      }
+      const refGroup = scalarNode(item, "ref_group");
+      if (refGroup && typeof refGroup.value === "string") {
+        ctx.refs.push({
+          refKind: "group_ref",
+          id: refGroup.value,
+          uri: ctx.uri,
+          range: tokenRange(refGroup, ctx.off),
+        });
+      }
     }
   }
 }

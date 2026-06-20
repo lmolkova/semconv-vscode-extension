@@ -9,6 +9,7 @@
     ".vscode-test/**",
     "pnpm-lock.yaml",
     "test/fixtures/**",
+    "server/src/schema/**",
     "LICENSE"
   ],
   "words": [
@@ -34,6 +35,9 @@
     "genai",
     "dups",
     "unparseable",
-    "codegen"
+    "codegen",
+    "ajv",
+    "updowncounter",
+    "Weaver"
   ]
 }

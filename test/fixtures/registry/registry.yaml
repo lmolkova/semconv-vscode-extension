@@ -13,6 +13,10 @@ attributes:
           brief: '[Anthropic](https://www.anthropic.com/)'
     stability: development
     brief: The Generative AI provider as identified by the client or server instrumentation.
+  - key: gen_ai.agent.id
+    type: string
+    stability: development
+    brief: The unique identifier of the GenAI agent.
   - key: gen_ai.operation.name
     type: string
     stability: development

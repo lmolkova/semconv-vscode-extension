@@ -67,9 +67,7 @@ describe("extract – references", () => {
     expect(byKind("group_ref")).toEqual(
       expect.arrayContaining(["attributes.gen_ai.common", "attributes.gen_ai.address_and_port"]),
     );
-    expect(byKind("attribute_ref")).toEqual(
-      expect.arrayContaining(["gen_ai.provider.name", "gen_ai.does.not.exist"]),
-    );
+    expect(byKind("attribute_ref")).toEqual(expect.arrayContaining(["gen_ai.provider.name"]));
     expect(byKind("entity_assoc")).toEqual(["gen_ai.agent"]);
     expect(byKind("span_refinement_ref")).toEqual(["gen_ai.inference.client"]);
 

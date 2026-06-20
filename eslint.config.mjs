@@ -17,7 +17,7 @@ export default defineConfig([
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.mjs", "*.config.{js,mjs,ts}"],
+          allowDefaultProject: ["*.mjs", "*.config.{js,mjs,ts}", "scripts/*.mjs"],
         },
         tsconfigRootDir: import.meta.dirname,
       },

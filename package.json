@@ -54,6 +54,8 @@
   "scripts": {
     "vscode:prepublish": "pnpm run build",
     "build": "node esbuild.mjs",
+    "sync-schema": "node scripts/sync-schema.mjs",
+    "check-registry": "node scripts/check-registry.mjs",
     "package": "vsce package --no-dependencies",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit && tsc -p test/integration/tsconfig.json --noEmit",
