@@ -19,9 +19,16 @@ allowBuilds:
 minimumReleaseAgeExclude:
   # Renovate security update: esbuild@0.25.0
   - esbuild@0.25.0
+  # Security update: undici@7.28.0 (still inside the 7-day age gate)
+  - undici@7.28.0
 
 # Force-resolve transitive deps to patched versions. mocha pins
 # serialize-javascript ^6.0.2, but all 6.x are vulnerable to GHSA-5c6j-r48x-rmvq
 # (RCE via RegExp.flags / Date.toISOString); only 7.0.3+ is patched.
+#
+# @vscode/vsce -> cheerio pulls undici; all 7.x < 7.28.0 are vulnerable to a
+# cluster of advisories (SOCKS5 proxy cross-origin routing / TLS bypass,
+# Set-Cookie injection, cache disclosure). 7.28.0 is the first patched release.
 overrides:
   serialize-javascript@<7.0.3: ">=7.0.3"
+  undici@<7.28.0: "7.28.0"
