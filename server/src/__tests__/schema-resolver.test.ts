@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { PathStep } from "../key-path";
-import { describeKeyPath } from "../schema-resolver";
+import { definitionResolver, manifestResolver } from "../schema-resolver";
 
 const key = (name: string): PathStep => ({ kind: "key", name });
 const item: PathStep = { kind: "item" };
+const describeKeyPath = (steps: PathStep[]) => definitionResolver.describeKeyPath(steps);
 
-describe("describeKeyPath", () => {
+describe("describeKeyPath (definition schema)", () => {
   it("resolves stability with its description and closed enum values", () => {
     const doc = describeKeyPath([key("attributes"), item, key("stability")]);
     expect(doc?.description).toBeTruthy();
@@ -81,5 +82,37 @@ describe("describeKeyPath", () => {
   it("returns undefined for unknown keys and bogus root keys", () => {
     expect(describeKeyPath([key("attributes"), item, key("nonsense_key")])).toBeUndefined();
     expect(describeKeyPath([key("not_a_top_level")])).toBeUndefined();
+  });
+});
+
+describe("describeKeyPath (manifest schema)", () => {
+  const describe2 = (steps: PathStep[]) => manifestResolver.describeKeyPath(steps);
+
+  it("documents the required schema_url key", () => {
+    expect(describe2([key("schema_url")])?.description).toBeTruthy();
+  });
+
+  it("resolves stability to its closed enum via the Stability $ref", () => {
+    const doc = describe2([key("stability")]);
+    expect(doc?.description).toBeTruthy();
+    expect(doc?.enumValues).toEqual(
+      expect.arrayContaining([
+        "stable",
+        "development",
+        "deprecated",
+        "alpha",
+        "beta",
+        "release_candidate",
+      ]),
+    );
+  });
+
+  it("descends into a dependency's schema_url through the array", () => {
+    expect(describe2([key("dependencies"), item, key("schema_url")])?.description).toBeTruthy();
+  });
+
+  it("does not leak definition-only keys into the manifest schema", () => {
+    expect(describe2([key("attributes")])).toBeUndefined();
+    expect(describe2([key("file_format")])).toBeUndefined();
   });
 });

@@ -24,7 +24,7 @@ import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
-import { describeKeyPath, KeyDoc } from "./schema-resolver";
+import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -223,7 +223,8 @@ function schemaHover(params: HoverParams): Hover | null {
   if (!doc) return null;
   const hit = pathAtParsed(parsedFor(doc), params.position);
   if (!hit) return null;
-  const info = describeKeyPath(hit.steps);
+  const resolver = hit.kind === "manifest" ? manifestResolver : definitionResolver;
+  const info = resolver.describeKeyPath(hit.steps);
   if (!info) return null;
 
   if (hit.onValue) {

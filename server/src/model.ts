@@ -30,7 +30,7 @@ export function extract(text: string, uri: string): ExtractResult {
   const defs: Definition[] = [];
   const refs: Reference[] = [];
 
-  if (!parsed.isSemconv || !parsed.root) {
+  if (parsed.kind !== "definition" || !parsed.root) {
     return { isSemconv: false, defs, refs, hasImports: false };
   }
 

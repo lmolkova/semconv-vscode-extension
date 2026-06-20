@@ -40,18 +40,28 @@ export class OffsetConverter {
   }
 }
 
+/** The semconv file kinds the server understands. Both drive schema-based hover. */
+export type DocKind = "definition" | "manifest";
+
 export interface ParsedSemconv {
-  isSemconv: boolean;
+  kind: DocKind | undefined;
   doc: Document.Parsed;
   root: YAMLMap | undefined;
   offsets: OffsetConverter;
 }
 
+/** A definition file declares `file_format`; a manifest carries `schema_url` and no format. */
+function classify(root: YAMLMap | undefined): DocKind | undefined {
+  if (!root) return undefined;
+  if (readScalar(root, "file_format") === FILE_FORMAT_V2) return "definition";
+  if (root.has("schema_url")) return "manifest";
+  return undefined;
+}
+
 export function parseSemconv(text: string): ParsedSemconv {
   const doc = parseDocument(text, { keepSourceTokens: false });
   const root = isMap(doc.contents) ? doc.contents : undefined;
-  const isSemconv = root ? readScalar(root, "file_format") === FILE_FORMAT_V2 : false;
-  return { isSemconv, doc, root, offsets: new OffsetConverter(text) };
+  return { kind: classify(root), doc, root, offsets: new OffsetConverter(text) };
 }
 
 export function looksLikeSemconv(text: string): boolean {
