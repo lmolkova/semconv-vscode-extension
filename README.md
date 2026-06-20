@@ -23,8 +23,10 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 - **Hover** — see the id, kind, type/stability/unit, and brief of the referenced
   entity. Hovering a schema field (`key`, `stability`, `instrument`, …) or an enum
   value shows its description and allowed values, straight from the official schema.
-- **Diagnostics** — unresolved references and duplicate definitions, flagged
-  inline.
+  Field hover also works in registry **manifest** files (`schema_url`,
+  `dependencies`, `stability`, …).
+- **Diagnostics** — unresolved references and duplicate definitions, plus
+  malformed or duplicate manifest dependency entries, flagged inline.
 
 ### What links to what
 
@@ -36,9 +38,11 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 | event / metric  | `name`        | `*_refinements[].ref`   | the matching signal |
 | enum member     | `id` (inline) |                         |                     |
 
-Files are recognized by **content** (`file_format: definition/2`), not by file
-name. The extension indexes every such file in your workspace folder, so
-navigation works across the whole registry.
+Files are recognized by **content**, not by file name: definition files declare
+`file_format: definition/2`, and a registry manifest is identified by its
+`schema_url` (with no `file_format`). The extension indexes every definition file
+in your workspace folder, so navigation works across the whole registry; manifest
+files get field hover and dependency diagnostics.
 
 ## Requirements
 

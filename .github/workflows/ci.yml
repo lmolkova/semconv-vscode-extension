@@ -27,12 +27,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Re-vendor the schema for the Renovate-pinned Weaver tag and fail if it
-      # drifts from what's committed, so a version bump can't merge un-synced.
-      - name: Vendored schema is in sync
+      # Re-vendor the schemas for the Renovate-pinned Weaver tag and fail if they
+      # drift from what's committed, so a version bump can't merge un-synced.
+      - name: Vendored schemas are in sync
         run: |
           pnpm sync-schema
-          git diff --exit-code -- server/src/schema/semconv.schema.v2.json
+          git diff --exit-code -- server/src/schema/
 
       - name: Gate (typecheck, lint, format, spell, unit tests)
         run: pnpm test

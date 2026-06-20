@@ -22,9 +22,10 @@ import { URI } from "vscode-uri";
 
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
+import { manifestDiagnostics } from "./manifest";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
-import { describeKeyPath, KeyDoc } from "./schema-resolver";
+import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -158,6 +159,15 @@ function validate(doc: TextDocument): void {
     });
   }
 
+  for (const finding of manifestDiagnostics(parsedFor(doc))) {
+    diagnostics.push({
+      severity: DiagnosticSeverity.Warning,
+      range: finding.range,
+      message: finding.message,
+      source: "semconv",
+    });
+  }
+
   void connection.sendDiagnostics({ uri: doc.uri, diagnostics });
 }
 
@@ -223,7 +233,8 @@ function schemaHover(params: HoverParams): Hover | null {
   if (!doc) return null;
   const hit = pathAtParsed(parsedFor(doc), params.position);
   if (!hit) return null;
-  const info = describeKeyPath(hit.steps);
+  const resolver = hit.kind === "manifest" ? manifestResolver : definitionResolver;
+  const info = resolver.describeKeyPath(hit.steps);
   if (!info) return null;
 
   if (hit.onValue) {

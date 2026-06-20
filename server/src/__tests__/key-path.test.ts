@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { pathAt, PathStep } from "../key-path";
-import { describeKeyPath } from "../schema-resolver";
+import { definitionResolver } from "../schema-resolver";
 
 const DOC = `file_format: definition/2
 attributes:
@@ -12,6 +12,11 @@ attributes:
           stability: development
     stability: development
     brief: hello
+`;
+
+const MANIFEST = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+description: A manifest.
+stability: development
 `;
 
 /** Position (line/character) of the start of the `nth` (0-based) occurrence of `needle`. */
@@ -28,6 +33,7 @@ const item: PathStep = { kind: "item" };
 describe("pathAt", () => {
   it("returns the schema path for an attribute-level key", () => {
     const hit = pathAt(DOC, posOf(DOC, "stability", 1)); // [0] is the member's stability
+    expect(hit?.kind).toBe("definition");
     expect(hit?.onValue).toBe(false);
     expect(hit?.steps).toEqual([k("attributes"), item, k("stability")]);
   });
@@ -56,13 +62,27 @@ describe("pathAt", () => {
     expect(hit?.key).toBe("key");
   });
 
-  it("returns undefined for non-semconv yaml", () => {
+  it("returns undefined for yaml that is neither a definition nor a manifest", () => {
     expect(pathAt("foo: bar\n", { line: 0, character: 0 })).toBeUndefined();
   });
 
-  it("composes with describeKeyPath to document a hovered key", () => {
+  it("tags manifest hits with the manifest kind", () => {
+    const hit = pathAt(MANIFEST, posOf(MANIFEST, "schema_url"));
+    expect(hit?.kind).toBe("manifest");
+    expect(hit?.steps).toEqual([k("schema_url")]);
+  });
+
+  it("flags a manifest enum value on its value scalar", () => {
+    const hit = pathAt(MANIFEST, posOf(MANIFEST, "development"));
+    expect(hit?.kind).toBe("manifest");
+    expect(hit?.onValue).toBe(true);
+    expect(hit?.value).toBe("development");
+    expect(hit?.key).toBe("stability");
+  });
+
+  it("composes with the matching resolver to document a hovered key", () => {
     const hit = pathAt(DOC, posOf(DOC, "stability", 1))!;
-    const doc = describeKeyPath(hit.steps);
+    const doc = definitionResolver.describeKeyPath(hit.steps);
     expect(doc?.description).toBeTruthy();
     expect(doc?.enumValues).toEqual(expect.arrayContaining(["stable", "development"]));
   });
