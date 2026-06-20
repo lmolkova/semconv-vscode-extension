@@ -21,9 +21,9 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 
 import { RegistryIndex } from "./index";
-import { pathAt } from "./key-path";
+import { pathAtParsed } from "./key-path";
 import { extract } from "./model";
-import { looksLikeSemconv } from "./parser";
+import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { describeKeyPath, KeyDoc } from "./schema-resolver";
 import { Definition, RESOLUTION } from "./types";
 
@@ -32,6 +32,16 @@ const documents = new TextDocuments(TextDocument);
 const index = new RegistryIndex();
 
 let workspaceRoots: string[] = [];
+
+const parseCache = new Map<string, { version: number; parsed: ParsedSemconv }>();
+
+function parsedFor(doc: TextDocument): ParsedSemconv {
+  const cached = parseCache.get(doc.uri);
+  if (cached && cached.version === doc.version) return cached.parsed;
+  const parsed = parseSemconv(doc.getText());
+  parseCache.set(doc.uri, { version: doc.version, parsed });
+  return parsed;
+}
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   workspaceRoots = (params.workspaceFolders ?? [])
@@ -111,6 +121,7 @@ connection.onDidChangeWatchedFiles((params) => {
 });
 
 documents.onDidClose((event) => {
+  parseCache.delete(event.document.uri);
   // Keep the on-disk version indexed so cross-file nav still works.
   scanFile(event.document.uri).catch(() => undefined);
 });
@@ -210,7 +221,7 @@ connection.onHover((params: HoverParams): Hover | null => {
 function schemaHover(params: HoverParams): Hover | null {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return null;
-  const hit = pathAt(doc.getText(), params.position);
+  const hit = pathAtParsed(parsedFor(doc), params.position);
   if (!hit) return null;
   const info = describeKeyPath(hit.steps);
   if (!info) return null;

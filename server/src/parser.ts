@@ -33,6 +33,11 @@ export class OffsetConverter {
   range(start: number, end: number): Range {
     return Range.create(this.position(start), this.position(end));
   }
+
+  offset(position: Position): number {
+    const line = Math.max(0, Math.min(position.line, this.lineStarts.length - 1));
+    return this.lineStarts[line] + position.character;
+  }
 }
 
 export interface ParsedSemconv {

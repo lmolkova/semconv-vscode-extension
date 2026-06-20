@@ -1,7 +1,7 @@
 import { Position } from "vscode-languageserver";
 import { isMap, isScalar, isSeq } from "yaml";
 
-import { parseSemconv } from "./parser";
+import { ParsedSemconv, parseSemconv } from "./parser";
 
 /** A step from the document root toward a hovered key, matching the JSON Schema shape. */
 export type PathStep = { kind: "key"; name: string } | { kind: "item" };
@@ -30,16 +30,6 @@ function inToken(node: unknown, offset: number): boolean {
   if (!r) return false;
   const end = isScalar(node) ? r[1] : r[2];
   return offset >= r[0] && offset < end;
-}
-
-function offsetAt(text: string, position: Position): number {
-  let line = 0;
-  let i = 0;
-  while (line < position.line && i < text.length) {
-    if (text.charCodeAt(i) === 10 /* \n */) line++;
-    i++;
-  }
-  return i + position.character;
 }
 
 function search(node: unknown, offset: number, steps: PathStep[]): PathHit | undefined {
@@ -80,9 +70,16 @@ function search(node: unknown, offset: number, steps: PathStep[]): PathHit | und
  * structural schema path to that key. Returns undefined for non-key/value positions
  * or non-semconv documents. Firing only on the key token keeps this from colliding
  * with the id/ref hover, which owns id/ref value tokens.
+ *
+ * Takes a pre-parsed document so callers can cache the AST across hovers rather than
+ * re-parsing on every cursor move.
  */
-export function pathAt(text: string, position: Position): PathHit | undefined {
-  const { isSemconv, root } = parseSemconv(text);
+export function pathAtParsed(parsed: ParsedSemconv, position: Position): PathHit | undefined {
+  const { isSemconv, root, offsets } = parsed;
   if (!isSemconv || !root) return undefined;
-  return search(root, offsetAt(text, position), []);
+  return search(root, offsets.offset(position), []);
+}
+
+export function pathAt(text: string, position: Position): PathHit | undefined {
+  return pathAtParsed(parseSemconv(text), position);
 }
