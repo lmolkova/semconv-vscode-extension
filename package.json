@@ -6,6 +6,21 @@
   "publisher": "lmolkova",
   "license": "Apache-2.0",
   "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lmolkova/semconv-vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lmolkova/semconv-vscode-extension/issues"
+  },
+  "homepage": "https://github.com/lmolkova/semconv-vscode-extension#readme",
+  "keywords": [
+    "opentelemetry",
+    "semantic-conventions",
+    "semconv",
+    "weaver",
+    "yaml"
+  ],
   "packageManager": "pnpm@11.8.0",
   "engines": {
     "vscode": "^1.96.0",
@@ -39,6 +54,7 @@
   "scripts": {
     "vscode:prepublish": "pnpm run build",
     "build": "node esbuild.mjs",
+    "package": "vsce package --no-dependencies",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit && tsc -p test/integration/tsconfig.json --noEmit",
     "lint": "eslint .",
@@ -57,6 +73,7 @@
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.96.0",
     "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.9.2",
     "cspell": "^10.0.1",
     "esbuild": "^0.28.0",
     "eslint": "^10.5.0",

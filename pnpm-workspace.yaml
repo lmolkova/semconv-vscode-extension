@@ -13,7 +13,9 @@ minimumReleaseAge: 10080
 # review each one and flip to `true` only if you trust it and it genuinely needs
 # to compile (e.g. native addons). esbuild ships a platform binary and needs it.
 allowBuilds:
+  "@vscode/vsce-sign": false
   esbuild: true
+  keytar: false
 minimumReleaseAgeExclude:
   # Renovate security update: esbuild@0.25.0
   - esbuild@0.25.0

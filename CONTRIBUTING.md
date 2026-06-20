@@ -58,29 +58,46 @@ Both entry points are bundled by [esbuild.mjs](esbuild.mjs) into `out/`, with
   `unset ELECTRON_RUN_AS_NODE`, otherwise the downloaded VS Code launches as plain
   Node instead of as an editor.
 
-## Publishing to the VS Code Marketplace
+## Releasing
 
-Releases are published with [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce)
-under the `lmolkova` publisher (see `publisher` in [package.json](package.json)).
+Releases are built with [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce)
+(a pinned devDependency) under the `lmolkova` publisher (see `publisher` in
+[package.json](package.json)).
 
-One-time setup:
-
-1. Create a [publisher](https://marketplace.visualstudio.com/manage) on the
-   Marketplace if one doesn't exist.
-2. Generate a Personal Access Token with the **Marketplace → Manage** scope from
-   [Azure DevOps](https://dev.azure.com), then `pnpm dlx @vscode/vsce login lmolkova`.
+Today we ship the packaged `.vsix` as a **GitHub Release asset** — no Marketplace
+account needed. Publishing to the VS Code Marketplace and Open VSX is planned; see
+the _release phase 2_ section in [TODO.md](TODO.md).
 
 To cut a release:
 
 ```bash
-# bump "version" in package.json first
-pnpm dlx @vscode/vsce package   # builds a .vsix you can install locally to smoke-test
-pnpm dlx @vscode/vsce publish    # builds + uploads to the Marketplace
+# 1. bump "version" in package.json and add a CHANGELOG.md entry, commit
+# 2. tag it (must match the new version) and push
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+Update [CHANGELOG.md](CHANGELOG.md) **only** with user-facing changes and
+bugfixes (newest version on top) — it ships in the `.vsix` and is shown on the
+Marketplace. Refactors, tests, tooling, and CI changes don't belong there.
+
+The tag triggers [.github/workflows/release.yml](.github/workflows/release.yml),
+which runs the full `pnpm test` gate, verifies the tag matches `package.json`'s
+`version`, packages the `.vsix`, and attaches it to an auto-generated GitHub
+Release. Users install it with `code --install-extension <file>.vsix` or the
+Extensions panel's "Install from VSIX…".
+
+To build the `.vsix` locally (e.g. to smoke-test before tagging):
+
+```bash
+pnpm package   # vsce package --no-dependencies → .vsix in the repo root
 ```
 
 `vscode:prepublish` runs `pnpm build`, so `out/` is always bundled fresh before
 packaging. Only the files needed at runtime ship — keep `.vscodeignore` in sync
-when adding sources or assets so `dev`/build files stay out of the `.vsix`.
+when adding sources or assets so dev/build files stay out of the `.vsix`. The
+native `keytar` / `@vscode/vsce-sign` build scripts are intentionally disabled in
+`pnpm-workspace.yaml` (only `vsce publish`/login needs them, and CI passes the
+token via env).
 
 ## Out of scope (for now)
 
