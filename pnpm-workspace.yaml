@@ -19,3 +19,9 @@ allowBuilds:
 minimumReleaseAgeExclude:
   # Renovate security update: esbuild@0.25.0
   - esbuild@0.25.0
+
+# Force-resolve transitive deps to patched versions. mocha pins
+# serialize-javascript ^6.0.2, but all 6.x are vulnerable to GHSA-5c6j-r48x-rmvq
+# (RCE via RegExp.flags / Date.toISOString); only 7.0.3+ is patched.
+overrides:
+  serialize-javascript@<7.0.3: ">=7.0.3"
