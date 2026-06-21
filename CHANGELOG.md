@@ -4,6 +4,8 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+## 0.2.0
+
 - Outline view per file and workspace-wide symbol search (Ctrl+T) over every
   attribute, group, signal, refinement, and enum-member id; enum members are nested
   under their attribute in the outline.
