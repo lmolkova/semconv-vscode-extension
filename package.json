@@ -1,9 +1,9 @@
 {
-  "name": "semconv-lang-server",
-  "displayName": "OpenTelemetry Semantic Conventions (definition/2)",
+  "name": "opentelemetry-semconv-support",
+  "displayName": "OpenTelemetry Semantic Conventions Language Support (definition/2)",
   "description": "Language support (go to definition, find references, hover, diagnostics) for OpenTelemetry semantic conventions definition/2 YAML files.",
   "version": "0.1.0",
-  "publisher": "lmolkova",
+  "publisher": "LiudmilaMolkova",
   "license": "Apache-2.0",
   "icon": "icon.png",
   "repository": {
@@ -36,7 +36,7 @@
   ],
   "contributes": {
     "configuration": {
-      "title": "Semantic Conventions Language Server",
+      "title": "OpenTelemetry Semantic Conventions Language Support",
       "properties": {
         "semconv.trace.server": {
           "type": "string",
@@ -47,6 +47,43 @@
           ],
           "default": "off",
           "description": "Log the communication between VS Code and the semconv language server. Use 'messages' or 'verbose' when reporting an issue."
+        }
+      }
+    },
+    "semanticTokenScopes": [
+      {
+        "language": "yaml",
+        "scopes": {
+          "semconvDefinition": [
+            "entity.name.type"
+          ],
+          "semconvReference": [
+            "entity.name.type"
+          ],
+          "semconvReference.unresolved": [
+            "invalid"
+          ],
+          "semconvEnumMember": [
+            "entity.name.function"
+          ],
+          "semconvEnumValue": [
+            "entity.name.function"
+          ],
+          "semconvSchemaUrl": [
+            "keyword.control"
+          ],
+          "semconvText": [
+            "comment"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "editor.semanticTokenColorCustomizations": {
+        "rules": {
+          "semconvReference.unresolved": {
+            "underline": true
+          }
         }
       }
     }

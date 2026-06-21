@@ -58,6 +58,11 @@ export class RegistryIndex {
     return undefined;
   }
 
+  localSymbols(uri: string): { defs: Definition[]; refs: Reference[] } {
+    const entry = this.docs.get(uri);
+    return entry ? { defs: entry.defs, refs: entry.refs } : { defs: [], refs: [] };
+  }
+
   unresolvedReferences(uri: string): Reference[] {
     // An importing registry pulls ids from elsewhere, so the local id set is
     // incomplete and "unresolved" can't be determined — suppress entirely.

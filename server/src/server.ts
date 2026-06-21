@@ -27,6 +27,7 @@ import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { schemaDiagnostics } from "./schema-validate";
+import { buildSemanticTokens, semanticTokensLegend } from "./semantic-tokens";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -55,6 +56,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
       definitionProvider: true,
       referencesProvider: true,
       hoverProvider: true,
+      semanticTokensProvider: { legend: semanticTokensLegend, full: true },
     },
   };
 });
@@ -208,6 +210,15 @@ connection.onReferences((params: ReferenceParams): Location[] => {
     }
   }
   return locations;
+});
+
+connection.languages.semanticTokens.on((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  // Only definition/2 and manifest docs get tokens; plain YAML (no kind) is left to YAML.
+  if (!doc || !parsedFor(doc).kind) return { data: [] };
+  const { defs, refs } = index.localSymbols(doc.uri);
+  const unresolved = new Set(index.unresolvedReferences(doc.uri));
+  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved);
 });
 
 connection.onHover((params: HoverParams): Hover | null => {

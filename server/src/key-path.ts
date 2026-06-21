@@ -1,5 +1,5 @@
 import { Position } from "vscode-languageserver";
-import { isMap, isScalar, isSeq } from "yaml";
+import { isMap, isScalar, isSeq, Scalar } from "yaml";
 
 import { DocKind, ParsedSemconv, parseSemconv } from "./parser";
 
@@ -89,4 +89,32 @@ export function pathAtParsed(parsed: ParsedSemconv, position: Position): PathHit
 
 export function pathAt(text: string, position: Position): PathHit | undefined {
   return pathAtParsed(parseSemconv(text), position);
+}
+
+/** A visitor callback receiving the schema path to a mapping key and its scalar value. */
+type ScalarVisitor = (steps: PathStep[], key: string, value: Scalar) => void;
+
+/**
+ * Visit every mapping key whose value is a scalar, passing the schema path to that key.
+ * Shares the root→leaf descent of `search` but walks the whole tree; `pathAtParsed`
+ * remains the entry point when only one cursor position matters.
+ */
+export function eachKeyValueScalar(root: unknown, visit: ScalarVisitor): void {
+  walkValues(root, [], visit);
+}
+
+function walkValues(node: unknown, steps: PathStep[], visit: ScalarVisitor): void {
+  if (isMap(node)) {
+    for (const pair of node.items) {
+      const keyNode = pair.key;
+      if (!isScalar(keyNode)) continue;
+      const name = String(keyNode.value);
+      const childSteps: PathStep[] = [...steps, { kind: "key", name }];
+      const value = pair.value;
+      if (isScalar(value)) visit(childSteps, name, value);
+      else if (value) walkValues(value, childSteps, visit);
+    }
+  } else if (isSeq(node)) {
+    for (const item of node.items) walkValues(item, [...steps, { kind: "item" }], visit);
+  }
 }
