@@ -32,25 +32,22 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Verify tag matches package.json version
+      - name: Validate tag
         run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::Tag $TAG is not a valid release tag (expected vX.Y.Z)"
+            exit 1
+          fi
           tag="${TAG#v}"
           pkg="$(node -p "require('./package.json').version")"
           if [ "$tag" != "$pkg" ]; then
             echo "::error::Tag $TAG does not match package.json version $pkg"
             exit 1
           fi
-
-      - name: Create and push tag
-        run: |
           if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "::error::Tag $TAG already exists"
             exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
 
       - name: Gate (typecheck, lint, format, spell, unit tests)
         run: pnpm test
@@ -62,6 +59,13 @@ jobs:
         run: pnpm exec vsce publish --no-dependencies --packagePath ./*.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -- "$TAG"
+          git push origin -- "refs/tags/$TAG"
 
       - name: Create GitHub Release
         env:
