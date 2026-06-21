@@ -11,3 +11,5 @@ User-facing changes to the extension. Newest first.
   `schema_url`).
 - Diagnostics for unresolved references and duplicate definitions, plus malformed
   or duplicate manifest dependency entries.
+- Schema validation for `definition/2` documents: missing required fields, unknown
+  fields, and invalid enum values are reported as errors on the offending YAML node.

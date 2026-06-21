@@ -26,6 +26,7 @@ import { manifestDiagnostics } from "./manifest";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
+import { schemaDiagnostics } from "./schema-validate";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -162,6 +163,15 @@ function validate(doc: TextDocument): void {
   for (const finding of manifestDiagnostics(parsedFor(doc))) {
     diagnostics.push({
       severity: DiagnosticSeverity.Warning,
+      range: finding.range,
+      message: finding.message,
+      source: "semconv",
+    });
+  }
+
+  for (const finding of schemaDiagnostics(parsedFor(doc))) {
+    diagnostics.push({
+      severity: DiagnosticSeverity.Error,
       range: finding.range,
       message: finding.message,
       source: "semconv",

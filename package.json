@@ -90,6 +90,7 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "fast-glob": "^3.3.2",
     "vscode-languageclient": "^10.0.0",
     "vscode-languageserver": "^10.0.0",

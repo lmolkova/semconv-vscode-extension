@@ -46,19 +46,18 @@ manifest for cross-registry resolution.
 
 ## Validate documents against the bundled JSON schema
 
-Today the extension only flags unresolved/duplicate references; it does not check
-that a `definition/2` document is structurally valid. Weaver catches these in CI
-(see the `registry` job / `pnpm check-registry`), but the editor stays silent on
-e.g. a span missing `name`, an entity using `attributes:` instead of
-`identity:`, or unknown fields — exactly the kinds of violations that had to be
-fixed in `test/fixtures/registry`.
-
-- [ ] Validate each open `definition/2` document against the bundled
-      `server/src/schema/semconv.schema.v2.json` (e.g. with `ajv`) and publish the
+- [x] Validate each open `definition/2` document against the bundled
+      `server/src/schema/semconv.schema.v2.json` (with `ajv`) and publish the
       structural errors (missing required fields, unknown properties, bad enums)
-      as diagnostics, mapped back to the offending YAML node's range.
-- [ ] Reconcile with the existing reference diagnostics in `server/src/server.ts`
-      so schema and resolution errors surface together without duplication.
+      as diagnostics, mapped back to the offending YAML node's range — see
+      [server/src/schema-validate.ts](server/src/schema-validate.ts), wired into
+      `validate()` in [server/src/server.ts](server/src/server.ts) as errors.
+- [ ] Validate **manifests** too. Blocked: the vendored
+      `definition-manifest.v2.json` models `schema_url` (top-level and per
+      dependency) as an object `{url}`, but real manifests use the string form, so
+      validating against it flags valid files. Manifests keep the hand-rolled
+      checks in [server/src/manifest.ts](server/src/manifest.ts) until the schema
+      is fixed upstream or the data is normalized before validation.
 
 ## Integrate with Weaver
 
