@@ -2,7 +2,7 @@
   "name": "opentelemetry-semconv-support",
   "displayName": "OTel SemConv v2",
   "description": "Language support (go to definition, find references, hover, diagnostics, outline, symbol search) for OpenTelemetry semantic conventions definition/2 YAML files.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "LiudmilaMolkova",
   "license": "Apache-2.0",
   "icon": "icon.png",
