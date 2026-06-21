@@ -93,8 +93,8 @@ Releases are built with [`@vscode/vsce`](https://github.com/microsoft/vscode-vsc
 Pushing a `vX.Y.Z` tag (matching `version` in [package.json](package.json)) runs the
 `Release` workflow, which gates, packages the `.vsix`, publishes it to the VS Code
 Marketplace (auth via the `VSCE_PAT` repository secret), then attaches the same
-`.vsix` to a **GitHub Release**. Open VSX publishing is still planned; see the
-_release phase 2_ section in [TODO.md](TODO.md).
+`.vsix` to a **GitHub Release**. Open VSX publishing is still planned; see
+the _Publish to the extension marketplaces_ section in [TODO.md](TODO.md).
 
 To cut a release:
 
