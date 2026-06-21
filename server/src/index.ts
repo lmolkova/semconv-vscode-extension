@@ -17,6 +17,7 @@ export class RegistryIndex {
   private readonly refIndex = new Map<string, Reference[]>();
   private importingDocs = 0;
   private allDefsCache: Definition[] | undefined;
+  private searchCache: { def: Definition; lowerId: string }[] | undefined;
 
   setDocument(uri: string, defs: Definition[], refs: Reference[], hasImports: boolean): void {
     this.removeDocument(uri);
@@ -25,6 +26,7 @@ export class RegistryIndex {
     for (const def of defs) push(this.defIndex, def.id, def);
     for (const ref of refs) push(this.refIndex, ref.id, ref);
     this.allDefsCache = undefined;
+    this.searchCache = undefined;
   }
 
   removeDocument(uri: string): void {
@@ -35,6 +37,7 @@ export class RegistryIndex {
     for (const ref of entry.refs) remove(this.refIndex, ref.id, (r) => r.uri === uri);
     this.docs.delete(uri);
     this.allDefsCache = undefined;
+    this.searchCache = undefined;
   }
 
   has(uri: string): boolean {
@@ -48,6 +51,21 @@ export class RegistryIndex {
 
   allDefinitions(): Definition[] {
     return (this.allDefsCache ??= Array.from(this.defIndex.values()).flat());
+  }
+
+  searchDefinitions(query: string, limit: number): Definition[] {
+    const cache = (this.searchCache ??= this.allDefinitions().map((def) => ({
+      def,
+      lowerId: def.id.toLowerCase(),
+    })));
+    const q = query.toLowerCase();
+    const out: Definition[] = [];
+    for (const { def, lowerId } of cache) {
+      if (q && !lowerId.includes(q)) continue;
+      out.push(def);
+      if (out.length >= limit) break;
+    }
+    return out;
   }
 
   documentSymbols(uri: string): DocumentSymbol[] {

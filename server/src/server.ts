@@ -43,6 +43,9 @@ let workspaceRoots: string[] = [];
 
 const parseCache = new Map<string, { version: number; parsed: ParsedSemconv }>();
 
+// Bound workspace/symbol responses; clients narrow by typing more of the query.
+const MAX_WORKSPACE_SYMBOLS = 1000;
+
 function parsedFor(doc: TextDocument): ParsedSemconv {
   const cached = parseCache.get(doc.uri);
   if (cached && cached.version === doc.version) return cached.parsed;
@@ -223,13 +226,11 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] =>
   index.documentSymbols(params.textDocument.uri),
 );
 
-connection.onWorkspaceSymbol((params: WorkspaceSymbolParams): WorkspaceSymbol[] => {
-  const q = params.query.toLowerCase();
-  return index
-    .allDefinitions()
-    .filter((d) => d.id.toLowerCase().includes(q))
-    .map((d) => WorkspaceSymbol.create(d.id, defKindToSymbolKind(d.kind), d.uri, d.nameRange));
-});
+connection.onWorkspaceSymbol((params: WorkspaceSymbolParams): WorkspaceSymbol[] =>
+  index
+    .searchDefinitions(params.query, MAX_WORKSPACE_SYMBOLS)
+    .map((d) => WorkspaceSymbol.create(d.id, defKindToSymbolKind(d.kind), d.uri, d.nameRange)),
+);
 
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);

@@ -95,6 +95,23 @@ describe("RegistryIndex – symbol queries", () => {
     expect(idx.allDefinitions().map((d) => d.id)).not.toContain("gen_ai.inference.client");
   });
 
+  it("searchDefinitions filters case-insensitively, honors the limit, and invalidates", () => {
+    const idx = buildIndex();
+    const all = idx.allDefinitions().length;
+
+    const provider = idx.searchDefinitions("PROVIDER", all);
+    expect(provider.length).toBeGreaterThan(0);
+    expect(provider.every((d) => d.id.toLowerCase().includes("provider"))).toBe(true);
+
+    expect(idx.searchDefinitions("", all)).toHaveLength(all);
+    expect(idx.searchDefinitions("", 2)).toHaveLength(2);
+
+    idx.removeDocument(uriOf("spans.yaml"));
+    expect(idx.searchDefinitions("inference.client", all).map((d) => d.id)).not.toContain(
+      "gen_ai.inference.client",
+    );
+  });
+
   it("documentSymbols caches per file and rebuilds after re-index", () => {
     const idx = buildIndex();
     const first = idx.documentSymbols(uriOf("registry.yaml"));
