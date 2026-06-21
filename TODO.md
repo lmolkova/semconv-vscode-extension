@@ -52,12 +52,12 @@ manifest for cross-registry resolution.
       as diagnostics, mapped back to the offending YAML node's range — see
       [server/src/schema-validate.ts](server/src/schema-validate.ts), wired into
       `validate()` in [server/src/server.ts](server/src/server.ts) as errors.
-- [ ] Validate **manifests** too. Blocked: the vendored
-      `definition-manifest.v2.json` models `schema_url` (top-level and per
-      dependency) as an object `{url}`, but real manifests use the string form, so
-      validating against it flags valid files. Manifests keep the hand-rolled
-      checks in [server/src/manifest.ts](server/src/manifest.ts) until the schema
-      is fixed upstream or the data is normalized before validation.
+- [x] Validate **manifests** too. The vendored `definition-manifest.v2.json` can't be
+      fed to a JSON-schema validator (it models `schema_url` as an object while real
+      manifests use the string form, and sets no `additionalProperties: false`), so
+      [server/src/manifest.ts](server/src/manifest.ts) checks unknown fields and the
+      `stability` enum by reading the allowed keys/values straight from the bundled
+      schema (kept in sync on re-vendor), alongside the existing dependency checks.
 
 ## Integrate with Weaver
 
