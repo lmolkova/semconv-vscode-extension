@@ -29,6 +29,7 @@ spans:
       - ref_group: attributes.gen_ai.address_and_port
       - ref: gen_ai.provider.name
         requirement_level: required
+        sampling_relevant: true
 span_refinements:
   - id: openai.inference.client
     ref: gen_ai.inference.client

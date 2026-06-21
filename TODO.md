@@ -18,15 +18,6 @@ declares an `imports` section (because the imported id universe is unknown).
 - [ ] Re-enable precise unresolved-reference diagnostics once the imported ids are
       known, instead of blanket suppression — match imported ids against the
       declared wildcards. (Replaces the current rule in [server/src/index.ts](server/src/index.ts) `unresolvedReferences`.)
-
-## Support definition manifest files
-
-Manifest files (no `file_format`, identified by `schema_url`) are recognized as a
-first-class document kind, with schema-driven **hover** for their fields and enum
-values (from the vendored `definition-manifest.v2.json`) and **basic diagnostics**
-for malformed/duplicate dependency entries. The remaining work is consuming the
-manifest for cross-registry resolution.
-
 - [ ] Use the manifest to discover the registry root and the dependency list that
       feeds cross-registry import resolution (see _Support dependencies_ above).
 - [ ] Go-to-definition / hover on a dependency entry — jump to or describe the
@@ -44,51 +35,19 @@ manifest for cross-registry resolution.
 - [ ] Advertise `completionProvider` (with `:` / space trigger chars) in the server
       capabilities in [server/src/server.ts](server/src/server.ts).
 
-## Validate documents against the bundled JSON schema
-
-- [x] Validate each open `definition/2` document against the bundled
-      `server/src/schema/semconv.schema.v2.json` (with `ajv`) and publish the
-      structural errors (missing required fields, unknown properties, bad enums)
-      as diagnostics, mapped back to the offending YAML node's range — see
-      [server/src/schema-validate.ts](server/src/schema-validate.ts), wired into
-      `validate()` in [server/src/server.ts](server/src/server.ts) as errors.
-- [x] Validate **manifests** too. The vendored `definition-manifest.v2.json` can't be
-      fed to a JSON-schema validator (it models `schema_url` as an object while real
-      manifests use the string form, and sets no `additionalProperties: false`), so
-      [server/src/manifest.ts](server/src/manifest.ts) checks unknown fields and the
-      `stability` enum by reading the allowed keys/values straight from the bundled
-      schema (kept in sync on re-vendor), alongside the existing dependency checks.
-
 ## Integrate with Weaver
 
 - [ ] Surface `weaver registry check` results as diagnostics (run the Weaver CLI and
       map its output back to ranges) so editor warnings match CI.
-- [ ] Read `weaver.yaml` / registry manifest to discover the registry root, included
-      paths, and dependency resolution rather than scanning blindly.
 - [ ] Consider a command to run Weaver codegen / live-resolve from within VS Code.
 
-## Publish to the extension marketplaces (release phase 2)
+## Publish to the extension marketplaces
 
-Phase 1 is done: tagging `vX.Y.Z` (matching `package.json` `version`) runs
+Tagging `vX.Y.Z` (matching `package.json` `version`) runs
 [.github/workflows/release.yml](.github/workflows/release.yml), which builds the
-`.vsix` and attaches it to a GitHub Release. Users install it via
-`code --install-extension <file>.vsix` or the Extensions panel's "Install from VSIX…".
-
-Phase 2 turns those releases into Marketplace publishes — same `vsce package`
-output, plus publish steps and credentials:
-
-- [ ] Register the `lmolkova` publisher on the VS Code Marketplace and create an
-      Azure DevOps Personal Access Token (Marketplace → Manage publish access).
-      Store it as the `VSCE_PAT` GitHub Actions secret.
-- [ ] Add `vsce publish --no-dependencies -p $VSCE_PAT` to the release job (after
-      packaging). `VSCE_PAT` via env means no `keytar` / interactive login —
-      keep `keytar` and `@vscode/vsce-sign` builds disabled in `pnpm-workspace.yaml`.
-- [ ] (Optional) Also publish to the Open VSX Registry for VSCodium / Cursor /
-      Gitpod: add the `ovsx` dep + `ovsx publish -p $OVSX_PAT` and an `OVSX_PAT`
-      secret from open-vsx.org.
-- [ ] Decide a version-bump flow (manual bump + tag, or a release bot) so the tag
-      guard in the workflow stays satisfied.
-- [ ] (Optional) Pre-release channel via `vsce publish --pre-release` for insider builds.
+`.vsix`, publishes it to the VS Code Marketplace under the `LiudmilaMolkova`
+publisher (auth via the `VSCE_PAT` secret), and attaches the `.vsix` to a GitHub
+Release. Users can also install manually via `code --install-extension <file>.vsix`.
 
 ## Other features
 

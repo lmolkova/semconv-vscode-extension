@@ -34,6 +34,22 @@ Hardening is in `pnpm-workspace.yaml`: `minimumReleaseAge: 10080` (1wk) and `all
 - `server/` — language server: `parser.ts` (YAML→AST) → `model.ts` (defs/refs per doc) → `index.ts` (cross-file `RegistryIndex`) → `server.ts` (LSP wiring).
 - `esbuild.mjs` bundles both into `out/`, `vscode` left external.
 
+## Performance
+
+LSP handlers run on every keystroke and document open — treat them as a hot path.
+Before adding work there, ask what runs per-token/per-scalar/per-file and how often.
+
+- **Cache anything heavy whose result is determined by stable inputs.** Schema
+  traversal (`schema-resolver.ts`) is memoized by structural path; parses are cached
+  by document version (`parsedFor`). Reuse these — don't re-parse or re-walk.
+- A handler that calls a helper once per scalar/token turns a cheap helper into an
+  O(scalars) cost. Memoize the helper (keyed by its real inputs, not the document) or
+  hoist the work out of the loop.
+- Don't recompute cross-file state per request when the index already holds it; add a
+  lookup to `RegistryIndex` instead of scanning documents.
+- Keep `onInitialized`/workspace-scan work off the critical path of interactive
+  requests — it shares the event loop.
+
 ## Style
 
 - Be concise. Match the surrounding code's naming and idioms.

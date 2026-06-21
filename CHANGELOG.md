@@ -2,6 +2,10 @@
 
 User-facing changes to the extension. Newest first.
 
+## Unreleased
+
+- Semantic syntax highlighting for `definition/2` and manifest files
+
 ## 0.1.0
 
 - Go to Definition, Find All References, and Hover across a `definition/2`

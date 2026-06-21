@@ -153,7 +153,20 @@ export function createSchemaResolver(schema: Node): SchemaResolver {
     return doc;
   }
 
+  // describeKeyPath is called once per scalar when building semantic tokens; the
+  // result depends only on the structural path (item steps carry no index), so a
+  // whole registry's worth of attributes collapses to a handful of distinct keys.
+  const cache = new Map<string, KeyDoc | undefined>();
+
   function describeKeyPath(steps: PathStep[]): KeyDoc | undefined {
+    const cacheKey = steps.map((s) => (s.kind === "item" ? "[]" : `.${s.name}`)).join("");
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    const result = computeKeyPath(steps);
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  function computeKeyPath(steps: PathStep[]): KeyDoc | undefined {
     let node: Node | undefined = schema;
     let propNode: Node | undefined;
     for (const step of steps) {

@@ -42,6 +42,11 @@ jobs:
       - name: Package VSIX
         run: pnpm run package
 
+      - name: Publish to VS Code Marketplace
+        run: pnpm exec vsce publish --no-dependencies --packagePath ./*.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
