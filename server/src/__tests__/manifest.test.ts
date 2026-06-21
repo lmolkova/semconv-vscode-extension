@@ -107,6 +107,25 @@ dependencies:
     expect(found).toEqual([]);
   });
 
+  it("accepts an http (non-https) schema_url", () => {
+    const found = diags("schema_url: http://example.com/schemas/test/1.0.0\n");
+    expect(found).toEqual([]);
+  });
+
+  it("flags a non-string schema_url", () => {
+    const found = diags("schema_url: 123\n");
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Schema URL must follow/);
+  });
+
+  it("flags a non-string stability value", () => {
+    const found = diags(
+      "schema_url: https://opentelemetry.io/schemas/test/0.1.0\nstability: 123\n",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Value must be one of/);
+  });
+
   it("flags an invalid stability value", () => {
     const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
 stability: nonsense

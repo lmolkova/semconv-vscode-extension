@@ -44,15 +44,14 @@ export function manifestDiagnostics(parsed: ParsedSemconv): ManifestFinding[] {
   if (schemaUrl) checkSchemaUrl(schemaUrl, off, findings);
 
   const stability = scalarNode(parsed.root, "stability");
-  if (
-    stability &&
-    typeof stability.value === "string" &&
-    !STABILITY_VALUES.includes(stability.value)
-  ) {
-    findings.push({
-      range: tokenRange(stability, off),
-      message: `Value must be one of: ${STABILITY_VALUES.join(", ")}.`,
-    });
+  if (stability) {
+    const text = scalarText(stability.value);
+    if (text != null && !STABILITY_VALUES.includes(text)) {
+      findings.push({
+        range: tokenRange(stability, off),
+        message: `Value must be one of: ${STABILITY_VALUES.join(", ")}.`,
+      });
+    }
   }
 
   if (!parsed.root.has("dependencies")) return findings;
@@ -76,8 +75,9 @@ export function manifestDiagnostics(parsed: ParsedSemconv): ManifestFinding[] {
     }
     unknownKeys(item, DEPENDENCY_KEYS, off, findings);
     const urlNode = scalarNode(item, "schema_url");
-    if (!urlNode || typeof urlNode.value !== "string") {
-      // A non-string (object-form) schema_url is left to Weaver; only flag a missing one.
+    if (!urlNode) {
+      // Object-form schema_url (a mapping) is left to Weaver; only a truly absent one is
+      // flagged here. A scalar that isn't a valid URL is caught by checkSchemaUrl below.
       if (!item.has("schema_url")) {
         findings.push({
           range: nodeRange(item, off),
@@ -87,27 +87,38 @@ export function manifestDiagnostics(parsed: ParsedSemconv): ManifestFinding[] {
       continue;
     }
     checkSchemaUrl(urlNode, off, findings);
-    if (seen.has(urlNode.value)) {
+    const url = scalarText(urlNode.value);
+    if (url == null) continue;
+    if (seen.has(url)) {
       findings.push({
         range: tokenRange(urlNode, off),
-        message: `Duplicate dependency: '${urlNode.value}' is listed more than once.`,
+        message: `Duplicate dependency: '${url}' is listed more than once.`,
       });
     } else {
-      seen.add(urlNode.value);
+      seen.add(url);
     }
   }
   return findings;
 }
 
 function checkSchemaUrl(node: Scalar, off: OffsetConverter, findings: ManifestFinding[]): void {
-  if (typeof node.value === "string" && !SCHEMA_URL_RE.test(node.value)) {
+  const text = scalarText(node.value);
+  if (text == null) return;
+  if (!SCHEMA_URL_RE.test(text)) {
     findings.push({
       range: tokenRange(node, off),
       message:
-        "Schema URL must follow 'https://host[:port]/<path>/<version>' " +
+        "Schema URL must follow 'http(s)://host[:port]/<path>/<version>' " +
         "with a 'major.minor.patch' version (e.g. .../1.0.0).",
     });
   }
+}
+
+/** A scalar's primitive value as text; undefined for null or non-primitive nodes. */
+function scalarText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
 }
 
 function unknownKeys(
