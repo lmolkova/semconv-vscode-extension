@@ -137,6 +137,30 @@ attribute_groups:
     expect(tokens.some((t) => symbolTypes.has(t.type))).toBe(false);
   });
 
+  it("colors multi-line notes and sequence examples as plain text", () => {
+    const doc = `file_format: definition/2
+attributes:
+  - key: gen_ai.evaluation.score.label
+    type: string
+    stability: development
+    brief: Human readable label for evaluation.
+    note: >
+      This attribute provides a human-readable interpretation.
+      The label SHOULD have low cardinality.
+    examples: ["relevant", "not_relevant"]
+`;
+    const tokens = tokensFor("a.yaml", { "a.yaml": doc });
+
+    expect(at(doc, tokens, "Human readable")).toMatchObject({ type: "semconvText" });
+    // every physical line of the folded note carries its own token (tokens can't span lines)
+    const noteLines = [7, 8];
+    for (const line of noteLines) {
+      expect(tokens.find((t) => t.line === line)).toMatchObject({ type: "semconvText" });
+    }
+    expect(at(doc, tokens, '"relevant"')).toMatchObject({ type: "semconvText" });
+    expect(at(doc, tokens, '"not_relevant"')).toMatchObject({ type: "semconvText" });
+  });
+
   it("returns nothing for plain yaml", () => {
     const tokens = tokensFor("plain.yaml", { "plain.yaml": "foo: bar\n" });
     expect(tokens).toEqual([]);

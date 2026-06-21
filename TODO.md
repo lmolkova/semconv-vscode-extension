@@ -53,7 +53,5 @@ Release. Users can also install manually via `code --install-extension <file>.vs
 
 - [ ] **Rename** — rename an attribute key / group id and update every reference
       across the registry (`renameProvider`).
-- [x] **Document & Workspace Symbols** — outline view per file
-      (`documentSymbolProvider`) and `workspace/symbol` search over all ids.
 - [ ] **CodeLens / inlay hints** — e.g. reference counts above a definition,
       inherited-attribute hints on `extends` / `ref_group`.

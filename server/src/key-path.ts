@@ -115,6 +115,19 @@ function walkValues(node: unknown, steps: PathStep[], visit: ScalarVisitor): voi
       else if (value) walkValues(value, childSteps, visit);
     }
   } else if (isSeq(node)) {
-    for (const item of node.items) walkValues(item, [...steps, { kind: "item" }], visit);
+    const key = lastKeyName(steps);
+    for (const item of node.items) {
+      const childSteps: PathStep[] = [...steps, { kind: "item" }];
+      if (isScalar(item)) visit(childSteps, key, item);
+      else if (item) walkValues(item, childSteps, visit);
+    }
   }
+}
+
+function lastKeyName(steps: PathStep[]): string {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    if (step.kind === "key") return step.name;
+  }
+  return "";
 }
