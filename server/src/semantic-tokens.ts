@@ -66,17 +66,17 @@ export function buildSemanticTokens(
 ): SemanticTokens {
   const tokens: { line: number; char: number; length: number; type: number; mods: number }[] = [];
 
+  // Semantic tokens can't span lines, so a multi-line scalar (e.g. a folded `note: >`
+  // block) is emitted as one token per line.
   const add = (range: Range, type: TokenType, mods: number) => {
-    if (range.start.line !== range.end.line) return; // ids/values are single-line scalars
-    const length = range.end.character - range.start.character;
-    if (length <= 0) return;
-    tokens.push({
-      line: range.start.line,
-      char: range.start.character,
-      length,
-      type: TYPE_INDEX[type],
-      mods,
-    });
+    for (let line = range.start.line; line <= range.end.line; line++) {
+      const char = line === range.start.line ? range.start.character : 0;
+      const endChar =
+        line === range.end.line ? range.end.character : parsed.offsets.lineEndChar(line);
+      const length = endChar - char;
+      if (length <= 0) continue;
+      tokens.push({ line, char, length, type: TYPE_INDEX[type], mods });
+    }
   };
 
   for (const def of defs) add(def.nameRange, DEF_TOKEN[def.kind], 0);
@@ -92,7 +92,6 @@ export function buildSemanticTokens(
     eachKeyValueScalar(parsed.root, (steps, key, value) => {
       if (typeof value.value !== "string") return;
       const range = tokenRange(value, parsed.offsets);
-      if (range.start.line !== range.end.line) return;
       if (claimed.has(`${range.start.line}:${range.start.character}`)) return;
       const info = resolver.describeKeyPath(steps);
       let type: TokenType = "semconvText";

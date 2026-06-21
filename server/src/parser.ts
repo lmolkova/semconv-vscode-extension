@@ -5,6 +5,7 @@ const FILE_FORMAT_V2 = "definition/2";
 
 export class OffsetConverter {
   private readonly lineStarts: number[];
+  private readonly length: number;
 
   constructor(text: string) {
     const starts = [0];
@@ -14,6 +15,7 @@ export class OffsetConverter {
       }
     }
     this.lineStarts = starts;
+    this.length = text.length;
   }
 
   position(offset: number): Position {
@@ -37,6 +39,13 @@ export class OffsetConverter {
   offset(position: Position): number {
     const line = Math.max(0, Math.min(position.line, this.lineStarts.length - 1));
     return this.lineStarts[line] + position.character;
+  }
+
+  /** Character offset of the end of `line`'s content (before its newline). */
+  lineEndChar(line: number): number {
+    const next = this.lineStarts[line + 1];
+    const end = next === undefined ? this.length : next - 1;
+    return end - this.lineStarts[line];
   }
 }
 

@@ -53,13 +53,31 @@ pnpm sync-schema   # re-downloads the JSON for the pinned tag
 
 ## Release
 
-```bash
-# 1. bump "version" in package.json and add a CHANGELOG.md entry, commit
-# 2. tag (must match the version) and push
-git tag v0.1.1 && git push origin v0.1.1
-```
+Two workflows, both `workflow_dispatch`:
 
-Pushing a `vX.Y.Z` tag runs the `Release` workflow, which gates, packages the
-`.vsix`, publishes it to the VS Code Marketplace, and attaches it to a GitHub
-Release. Update [CHANGELOG.md](CHANGELOG.md) with user-facing changes only
-(newest on top) — it ships in the `.vsix` and shows on the Marketplace.
+1. **Prepare release** — run it with the new version (e.g. `0.1.1`):
+
+   ```bash
+   gh workflow run prepare-release.yml -f version=0.1.1
+   ```
+
+   It runs [scripts/prepare-release.mjs](scripts/prepare-release.mjs) to bump
+   `version` in `package.json` and roll the [CHANGELOG.md](CHANGELOG.md)
+   `## Unreleased` entries into a `## 0.1.1` section, then opens a PR. Review
+   and merge it. (Add user-facing changes under `## Unreleased` as you go,
+   newest on top — only those go into the release.)
+
+2. **Release** — after the bump is merged, run it with the matching tag:
+
+   ```bash
+   gh workflow run release.yml -f tag=v0.1.1
+   ```
+
+   It verifies the tag matches `package.json`, creates and pushes the tag, then
+   gates, packages the `.vsix`, publishes it to the VS Code Marketplace, and
+   attaches it to a GitHub Release. The CHANGELOG ships in the `.vsix` and shows
+   on the Marketplace.
+
+Both accept the **Run workflow** button on the Actions tab instead of `gh`. The
+tag is cut from `main`'s HEAD at dispatch time, so make sure the prepare PR is
+merged first.
