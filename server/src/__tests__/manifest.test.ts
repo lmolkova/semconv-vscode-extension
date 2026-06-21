@@ -60,6 +60,81 @@ dependencies:
     expect(found[0].message).toMatch(/must be a list/);
   });
 
+  it("flags an unknown top-level field", () => {
+    const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+dependencies-typo:
+  - schema_url: https://opentelemetry.io/schemas/other/1.0.0
+`;
+    const found = diags(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Unknown field 'dependencies-typo'/);
+  });
+
+  it("flags an unknown field on a dependency", () => {
+    const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+dependencies:
+  - schema_url: https://opentelemetry.io/schemas/other/1.0.0
+    bogus: nope
+`;
+    const found = diags(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Unknown field 'bogus'/);
+  });
+
+  it("flags a malformed top-level schema_url", () => {
+    const found = diags("schema_url: https://opentelemetry.io/registry/test\n");
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Schema URL must follow/);
+  });
+
+  it("flags a dependency schema_url missing a version", () => {
+    const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+dependencies:
+  - schema_url: https://opentelemetry.io/schemas/other
+`;
+    const found = diags(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Schema URL must follow/);
+  });
+
+  it("accepts a schema_url with a prerelease suffix", () => {
+    const found = diags("schema_url: https://opentelemetry.io/schemas/test/1.2.3-rc.1\n");
+    expect(found).toEqual([]);
+  });
+
+  it("accepts a schema_url with an arbitrary path", () => {
+    const found = diags("schema_url: https://example.com/any/nested/path/2.0.0\n");
+    expect(found).toEqual([]);
+  });
+
+  it("accepts an http (non-https) schema_url", () => {
+    const found = diags("schema_url: http://example.com/schemas/test/1.0.0\n");
+    expect(found).toEqual([]);
+  });
+
+  it("flags a non-string schema_url", () => {
+    const found = diags("schema_url: 123\n");
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Schema URL must follow/);
+  });
+
+  it("flags a non-string stability value", () => {
+    const found = diags(
+      "schema_url: https://opentelemetry.io/schemas/test/0.1.0\nstability: 123\n",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Value must be one of/);
+  });
+
+  it("flags an invalid stability value", () => {
+    const text = `schema_url: https://opentelemetry.io/schemas/test/0.1.0
+stability: nonsense
+`;
+    const found = diags(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/Value must be one of/);
+  });
+
   it("returns nothing for a definition file", () => {
     const text = `file_format: definition/2
 attributes:

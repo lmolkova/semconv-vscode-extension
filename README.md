@@ -8,6 +8,8 @@ Navigate and validate a semantic-convention registry the same way you would a
 codebase — jump to where an attribute is defined, find everywhere it's used, and
 catch broken references as you type.
 
+![Demo](https://raw.githubusercontent.com/lmolkova/semconv-vscode-extension/main/content/demo.gif)
+
 > **Unofficial.** This is an unofficial project and is not
 > endorsed by the OpenTelemetry project.
 
