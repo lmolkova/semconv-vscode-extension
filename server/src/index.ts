@@ -1,11 +1,14 @@
-import { Position, Range } from "vscode-languageserver";
+import { DocumentSymbol, Position } from "vscode-languageserver";
 
+import { buildDocumentSymbols } from "./document-symbols";
+import { positionInRange } from "./parser";
 import { Definition, DefKind, Reference, RESOLUTION, SymbolAt } from "./types";
 
 interface DocEntry {
   defs: Definition[];
   refs: Reference[];
   hasImports: boolean;
+  symbols?: DocumentSymbol[];
 }
 
 export class RegistryIndex {
@@ -13,6 +16,7 @@ export class RegistryIndex {
   private readonly defIndex = new Map<string, Definition[]>();
   private readonly refIndex = new Map<string, Reference[]>();
   private importingDocs = 0;
+  private allDefsCache: Definition[] | undefined;
 
   setDocument(uri: string, defs: Definition[], refs: Reference[], hasImports: boolean): void {
     this.removeDocument(uri);
@@ -20,6 +24,7 @@ export class RegistryIndex {
     if (hasImports) this.importingDocs++;
     for (const def of defs) push(this.defIndex, def.id, def);
     for (const ref of refs) push(this.refIndex, ref.id, ref);
+    this.allDefsCache = undefined;
   }
 
   removeDocument(uri: string): void {
@@ -29,6 +34,7 @@ export class RegistryIndex {
     for (const def of entry.defs) remove(this.defIndex, def.id, (d) => d.uri === uri);
     for (const ref of entry.refs) remove(this.refIndex, ref.id, (r) => r.uri === uri);
     this.docs.delete(uri);
+    this.allDefsCache = undefined;
   }
 
   has(uri: string): boolean {
@@ -38,6 +44,16 @@ export class RegistryIndex {
   definitionsFor(id: string, kinds: readonly DefKind[]): Definition[] {
     const all = this.defIndex.get(id) ?? [];
     return all.filter((d) => kinds.includes(d.kind));
+  }
+
+  allDefinitions(): Definition[] {
+    return (this.allDefsCache ??= Array.from(this.defIndex.values()).flat());
+  }
+
+  documentSymbols(uri: string): DocumentSymbol[] {
+    const entry = this.docs.get(uri);
+    if (!entry) return [];
+    return (entry.symbols ??= buildDocumentSymbols(entry.defs));
   }
 
   referencesFor(id: string, defKind?: DefKind): Reference[] {
@@ -50,10 +66,10 @@ export class RegistryIndex {
     const entry = this.docs.get(uri);
     if (!entry) return undefined;
     for (const def of entry.defs) {
-      if (contains(def.nameRange, position)) return { kind: "definition", def };
+      if (positionInRange(def.nameRange, position)) return { kind: "definition", def };
     }
     for (const ref of entry.refs) {
-      if (contains(ref.range, position)) return { kind: "reference", ref };
+      if (positionInRange(ref.range, position)) return { kind: "reference", ref };
     }
     return undefined;
   }
@@ -96,14 +112,4 @@ function remove<T>(map: Map<string, T[]>, key: string, pred: (v: T) => boolean):
   const kept = arr.filter((v) => !pred(v));
   if (kept.length) map.set(key, kept);
   else map.delete(key);
-}
-
-function contains(range: Range, pos: Position): boolean {
-  const afterStart =
-    pos.line > range.start.line ||
-    (pos.line === range.start.line && pos.character >= range.start.character);
-  const beforeEnd =
-    pos.line < range.end.line ||
-    (pos.line === range.end.line && pos.character <= range.end.character);
-  return afterStart && beforeEnd;
 }

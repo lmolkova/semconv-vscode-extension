@@ -5,6 +5,8 @@ import {
   DefinitionParams,
   Diagnostic,
   DiagnosticSeverity,
+  DocumentSymbol,
+  DocumentSymbolParams,
   FileChangeType,
   Hover,
   HoverParams,
@@ -16,10 +18,13 @@ import {
   ReferenceParams,
   TextDocuments,
   TextDocumentSyncKind,
+  WorkspaceSymbol,
+  WorkspaceSymbolParams,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 
+import { defKindToSymbolKind } from "./document-symbols";
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
 import { manifestDiagnostics } from "./manifest";
@@ -56,6 +61,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
       definitionProvider: true,
       referencesProvider: true,
       hoverProvider: true,
+      documentSymbolProvider: true,
+      workspaceSymbolProvider: true,
       semanticTokensProvider: { legend: semanticTokensLegend, full: true },
     },
   };
@@ -210,6 +217,18 @@ connection.onReferences((params: ReferenceParams): Location[] => {
     }
   }
   return locations;
+});
+
+connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] =>
+  index.documentSymbols(params.textDocument.uri),
+);
+
+connection.onWorkspaceSymbol((params: WorkspaceSymbolParams): WorkspaceSymbol[] => {
+  const q = params.query.toLowerCase();
+  return index
+    .allDefinitions()
+    .filter((d) => d.id.toLowerCase().includes(q))
+    .map((d) => WorkspaceSymbol.create(d.id, defKindToSymbolKind(d.kind), d.uri, d.nameRange));
 });
 
 connection.languages.semanticTokens.on((params) => {
