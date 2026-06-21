@@ -4,6 +4,9 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+- Outline view per file and workspace-wide symbol search (Ctrl+T) over every
+  attribute, group, signal, refinement, and enum-member id; enum members are nested
+  under their attribute in the outline.
 - Semantic syntax highlighting for `definition/2` and manifest files
 
 ## 0.1.0

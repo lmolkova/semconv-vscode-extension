@@ -5,6 +5,8 @@ import {
   DefinitionParams,
   Diagnostic,
   DiagnosticSeverity,
+  DocumentSymbol,
+  DocumentSymbolParams,
   FileChangeType,
   Hover,
   HoverParams,
@@ -16,10 +18,13 @@ import {
   ReferenceParams,
   TextDocuments,
   TextDocumentSyncKind,
+  WorkspaceSymbol,
+  WorkspaceSymbolParams,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 
+import { defKindToSymbolKind } from "./document-symbols";
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
 import { manifestDiagnostics } from "./manifest";
@@ -37,6 +42,9 @@ const index = new RegistryIndex();
 let workspaceRoots: string[] = [];
 
 const parseCache = new Map<string, { version: number; parsed: ParsedSemconv }>();
+
+// Bound workspace/symbol responses; clients narrow by typing more of the query.
+const MAX_WORKSPACE_SYMBOLS = 1000;
 
 function parsedFor(doc: TextDocument): ParsedSemconv {
   const cached = parseCache.get(doc.uri);
@@ -56,6 +64,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
       definitionProvider: true,
       referencesProvider: true,
       hoverProvider: true,
+      documentSymbolProvider: true,
+      workspaceSymbolProvider: true,
       semanticTokensProvider: { legend: semanticTokensLegend, full: true },
     },
   };
@@ -211,6 +221,16 @@ connection.onReferences((params: ReferenceParams): Location[] => {
   }
   return locations;
 });
+
+connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] =>
+  index.documentSymbols(params.textDocument.uri),
+);
+
+connection.onWorkspaceSymbol((params: WorkspaceSymbolParams): WorkspaceSymbol[] =>
+  index
+    .searchDefinitions(params.query, MAX_WORKSPACE_SYMBOLS)
+    .map((d) => WorkspaceSymbol.create(d.id, defKindToSymbolKind(d.kind), d.uri, d.nameRange)),
+);
 
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);

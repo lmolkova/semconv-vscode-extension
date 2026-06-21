@@ -112,3 +112,14 @@ export function nodeRange(node: unknown, off: OffsetConverter): Range {
   const r = (node as { range?: [number, number, number] | null } | null)?.range;
   return r ? off.range(r[0], r[2]) : Range0;
 }
+
+/** Whether a position falls within a range (inclusive on both ends). */
+export function positionInRange(range: Range, pos: Position): boolean {
+  const afterStart =
+    pos.line > range.start.line ||
+    (pos.line === range.start.line && pos.character >= range.start.character);
+  const beforeEnd =
+    pos.line < range.end.line ||
+    (pos.line === range.end.line && pos.character <= range.end.character);
+  return afterStart && beforeEnd;
+}

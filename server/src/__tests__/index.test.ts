@@ -84,6 +84,47 @@ describe("RegistryIndex – symbolAt", () => {
   });
 });
 
+describe("RegistryIndex – symbol queries", () => {
+  it("allDefinitions spans every file and invalidates on removeDocument", () => {
+    const idx = buildIndex();
+    const ids = new Set(idx.allDefinitions().map((d) => d.id));
+    expect(ids).toContain("gen_ai.provider.name"); // registry.yaml
+    expect(ids).toContain("gen_ai.inference.client"); // spans.yaml
+
+    idx.removeDocument(uriOf("spans.yaml"));
+    expect(idx.allDefinitions().map((d) => d.id)).not.toContain("gen_ai.inference.client");
+  });
+
+  it("searchDefinitions filters case-insensitively, honors the limit, and invalidates", () => {
+    const idx = buildIndex();
+    const all = idx.allDefinitions().length;
+
+    const provider = idx.searchDefinitions("PROVIDER", all);
+    expect(provider.length).toBeGreaterThan(0);
+    expect(provider.every((d) => d.id.toLowerCase().includes("provider"))).toBe(true);
+
+    expect(idx.searchDefinitions("", all)).toHaveLength(all);
+    expect(idx.searchDefinitions("", 2)).toHaveLength(2);
+
+    idx.removeDocument(uriOf("spans.yaml"));
+    expect(idx.searchDefinitions("inference.client", all).map((d) => d.id)).not.toContain(
+      "gen_ai.inference.client",
+    );
+  });
+
+  it("documentSymbols caches per file and rebuilds after re-index", () => {
+    const idx = buildIndex();
+    const first = idx.documentSymbols(uriOf("registry.yaml"));
+    expect(first).toBe(idx.documentSymbols(uriOf("registry.yaml")));
+    expect(first.some((s) => s.name === "gen_ai.provider.name")).toBe(true);
+
+    const text = fs.readFileSync(path.join(REG, "registry.yaml"), "utf8");
+    const { defs, refs, hasImports } = extract(text, uriOf("registry.yaml"));
+    idx.setDocument(uriOf("registry.yaml"), defs, refs, hasImports);
+    expect(idx.documentSymbols(uriOf("registry.yaml"))).not.toBe(first);
+  });
+});
+
 describe("RegistryIndex – diagnostics rules", () => {
   it("flags an unresolved reference in a self-contained registry", () => {
     const idx = buildIndex();

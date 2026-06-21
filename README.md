@@ -18,17 +18,13 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 
 ## Features
 
-- **Go to Definition** — jump from a `ref` / `ref_group` / `entity_associations` /
-  refinement `ref` to the entity that defines that id, across files.
-- **Find All References** — from any attribute/group/signal id to every place it
-  is referenced in the registry.
-- **Hover** — see the id, kind, type/stability/unit, and brief of the referenced
-  entity. Hovering a schema field (`key`, `stability`, `instrument`, …) or an enum
-  value shows its description and allowed values, straight from the official schema.
-  Field hover also works in registry **manifest** files (`schema_url`,
-  `dependencies`, `stability`, …).
-- **Diagnostics** — unresolved references and duplicate definitions, plus
-  malformed or duplicate manifest dependency entries, flagged inline.
+- **Go to Definition** — jump from a `ref` to the entity that defines that id.
+- **Find All References** — from any id to every place it is referenced.
+- **Hover** — an entity's details, or a schema field/enum value's description and
+  allowed values, straight from the official schema.
+- **Diagnostics** — unresolved references and duplicate definitions flagged inline.
+- **Outline & symbol search** — per-file outline plus "Go to Symbol in Workspace"
+  across the whole registry.
 
 ### What links to what
 
@@ -53,8 +49,7 @@ files get field hover and dependency diagnostics.
 
 ## Installation
 
-- **Marketplace:** search for _OpenTelemetry Semantic Conventions_ in the
-  Extensions view and install.
+- **Marketplace:** search for _OTel SemConv_ in the Extensions view and install.
 - **From a `.vsix`:** download the package, then run
   _Extensions: Install from VSIX…_ from the Command Palette.
 
@@ -76,7 +71,3 @@ resolution, and the legacy `definition/1` (`groups:`) format.
 
 Bug reports and contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 for the development setup, architecture, and tests.
-
-## License
-
-[Apache-2.0](LICENSE).
