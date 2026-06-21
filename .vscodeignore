@@ -7,6 +7,7 @@ out/test/**
 **/tsconfig*.json
 
 # Build / tooling config
+scripts/**
 esbuild.mjs
 eslint.config.mjs
 .prettierignore
@@ -27,6 +28,7 @@ CONTRIBUTING.md
 TODO.md
 
 # Dev artifacts
+.claude/**
 .vscode-test/**
 **/*.map
 *.vsix
