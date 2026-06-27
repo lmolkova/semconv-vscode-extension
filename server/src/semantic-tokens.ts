@@ -48,6 +48,8 @@ const DEF_TOKEN: Record<DefKind, TokenType> = {
   span_refinement: DEFINITION,
 };
 
+// The md_* kinds never reach here (markdown gets no semantic tokens); listed only
+// to keep this map exhaustive over RefKind.
 const REF_TOKEN: Record<RefKind, TokenType> = {
   attribute_ref: REFERENCE,
   group_ref: REFERENCE,
@@ -56,6 +58,15 @@ const REF_TOKEN: Record<RefKind, TokenType> = {
   event_refinement_ref: REFERENCE,
   metric_refinement_ref: REFERENCE,
   span_refinement_ref: REFERENCE,
+  md_attribute_ref: REFERENCE,
+  md_event_ref: REFERENCE,
+  md_metric_ref: REFERENCE,
+  md_span_ref: REFERENCE,
+  md_entity_ref: REFERENCE,
+  md_event_refinement_ref: REFERENCE,
+  md_metric_refinement_ref: REFERENCE,
+  md_span_refinement_ref: REFERENCE,
+  md_entity_refinement_ref: REFERENCE,
 };
 
 export function buildSemanticTokens(

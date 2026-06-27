@@ -30,6 +30,7 @@ import { defKindToSymbolKind } from "./document-symbols";
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
 import { manifestDiagnostics } from "./manifest";
+import { extractMarkdown, looksLikeWeaverDoc } from "./markdown";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { buildRenameEdits, prepareRename } from "./rename";
@@ -48,6 +49,10 @@ const parseCache = new Map<string, { version: number; parsed: ParsedSemconv }>()
 
 // Bound workspace/symbol responses; clients narrow by typing more of the query.
 const MAX_WORKSPACE_SYMBOLS = 1000;
+
+function isMarkdown(uri: string): boolean {
+  return uri.endsWith(".md");
+}
 
 function parsedFor(doc: TextDocument): ParsedSemconv {
   const cached = parseCache.get(doc.uri);
@@ -88,7 +93,7 @@ async function scanWorkspace(): Promise<void> {
   for (const root of workspaceRoots) {
     let files: string[];
     try {
-      files = await fg(["**/*.yaml", "**/*.yml"], {
+      files = await fg(["**/*.yaml", "**/*.yml", "**/*.md"], {
         cwd: root,
         absolute: true,
         ignore: ["**/node_modules/**", "**/.git/**"],
@@ -99,9 +104,14 @@ async function scanWorkspace(): Promise<void> {
     for (const file of files) {
       try {
         const text = await fs.readFile(file, "utf8");
-        if (!looksLikeSemconv(text)) continue;
         const uri = URI.file(file).toString();
         if (documents.get(uri)) continue; // open docs are indexed from their buffer
+        if (isMarkdown(uri)) {
+          if (looksLikeWeaverDoc(text))
+            index.setDocument(uri, [], extractMarkdown(text, uri), false);
+          continue;
+        }
+        if (!looksLikeSemconv(text)) continue;
         const { isSemconv, defs, refs, hasImports } = extract(text, uri);
         if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
       } catch {
@@ -112,6 +122,12 @@ async function scanWorkspace(): Promise<void> {
 }
 
 function indexDocument(doc: TextDocument): void {
+  if (isMarkdown(doc.uri)) {
+    const refs = extractMarkdown(doc.getText(), doc.uri);
+    if (refs.length) index.setDocument(doc.uri, [], refs, false);
+    else index.removeDocument(doc.uri);
+    return;
+  }
   const { isSemconv, defs, refs, hasImports } = extract(doc.getText(), doc.uri);
   if (isSemconv) {
     index.setDocument(doc.uri, defs, refs, hasImports);
@@ -147,6 +163,12 @@ documents.onDidClose((event) => {
 async function scanFile(uri: string): Promise<void> {
   try {
     const text = await fs.readFile(URI.parse(uri).fsPath, "utf8");
+    if (isMarkdown(uri)) {
+      const refs = extractMarkdown(text, uri);
+      if (refs.length) index.setDocument(uri, [], refs, false);
+      else index.removeDocument(uri);
+      return;
+    }
     const { isSemconv, defs, refs, hasImports } = extract(text, uri);
     if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
     else index.removeDocument(uri);
@@ -165,6 +187,11 @@ function validate(doc: TextDocument): void {
       message: `Unresolved reference: '${ref.id}' is not defined in this registry.`,
       source: "semconv",
     });
+  }
+
+  if (isMarkdown(doc.uri)) {
+    void connection.sendDiagnostics({ uri: doc.uri, diagnostics });
+    return;
   }
 
   for (const def of index.duplicateDefinitions(doc.uri)) {
@@ -257,7 +284,7 @@ async function docText(uri: string): Promise<string | undefined> {
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);
   // Only definition/2 and manifest docs get tokens; plain YAML (no kind) is left to YAML.
-  if (!doc || !parsedFor(doc).kind) return { data: [] };
+  if (!doc || isMarkdown(doc.uri) || !parsedFor(doc).kind) return { data: [] };
   const { defs, refs } = index.localSymbols(doc.uri);
   const unresolved = new Set(index.unresolvedReferences(doc.uri));
   return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved);
@@ -286,7 +313,8 @@ connection.onHover((params: HoverParams): Hover | null => {
     return { contents: { kind: MarkupKind.Markdown, value: renderHover(def) } };
   }
 
-  // No id/ref symbol here — try schema-key (or enum-value) hover.
+  // No id/ref symbol here — try schema-key (or enum-value) hover (YAML only).
+  if (isMarkdown(params.textDocument.uri)) return null;
   return schemaHover(params);
 });
 
