@@ -54,3 +54,28 @@ jobs:
 
       - name: Validate test registry with Weaver
         run: node scripts/check-registry.mjs
+
+  # Regenerate the fixture docs (registry attribute pages + the weaver snippet
+  # tables in the hand-written signal docs) and fail if the committed output is
+  # stale, so a fixture or template change can't merge without refreshed docs.
+  generated-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Regenerate fixture docs
+        run: make generate
+
+      - name: Check committed docs are up to date
+        run: |
+          if ! git diff --exit-code -- test/fixtures/docs; then
+            echo "FAIL: generated fixture docs are out of date. Run 'make generate' and commit the result."
+            exit 1
+          fi
+          untracked=$(git ls-files --others --exclude-standard -- test/fixtures/docs)
+          if [ -n "$untracked" ]; then
+            echo "FAIL: untracked generated docs under test/fixtures/docs:"
+            echo "$untracked"
+            exit 1
+          fi
+          echo "OK: committed fixture docs are up to date"

@@ -1,0 +1,34 @@
+file_format: definition/2
+events:
+  - name: gen_ai.client.inference.operation.details
+    requirement_level: recommended
+    stability: development
+    brief: >
+      Describes the details of a GenAI inference operation, including the
+      request parameters and token usage.
+    note: >
+      This event is opt-in and can be used to record input and output details
+      independently from the inference span.
+    attributes:
+      - ref: gen_ai.operation.name
+        requirement_level: required
+      - ref: gen_ai.provider.name
+        requirement_level: required
+      - ref: gen_ai.request.model
+        requirement_level: recommended
+      - ref: gen_ai.usage.input_tokens
+        requirement_level: recommended
+      - ref: gen_ai.usage.output_tokens
+        requirement_level: recommended
+  - name: gen_ai.evaluation.result
+    requirement_level: recommended
+    stability: development
+    brief: >
+      Captures the result of evaluating a GenAI response for quality, accuracy,
+      or other characteristics.
+    attributes:
+      - ref: gen_ai.evaluation.name
+        requirement_level: required
+      - ref: error.type
+        requirement_level:
+          conditionally_required: If the evaluation ended in an error.

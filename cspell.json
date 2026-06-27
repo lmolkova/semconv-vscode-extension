@@ -41,6 +41,7 @@
     "codegen",
     "ajv",
     "updowncounter",
-    "Weaver"
+    "Weaver",
+    "endweaver"
   ]
 }

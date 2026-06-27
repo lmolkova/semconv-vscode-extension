@@ -51,6 +51,44 @@ CI fails the drift check until the regenerated JSON is committed. To regenerate:
 pnpm sync-schema   # re-downloads the JSON for the pinned tag
 ```
 
+## Generated fixture docs
+
+[`test/fixtures/docs`](test/fixtures/docs) holds example Weaver-generated
+documentation for the test-fixture registry — the attribute registry pages
+under `registry/` and the hand-written signal docs (`spans.md`, `metrics.md`,
+`events.md`) whose tables Weaver fills in. The signal docs are authored by
+hand except for the blocks between `<!-- weaver {jq query} -->` and
+`<!-- endweaver -->` markers, which Weaver rewrites in place. The `jq` query
+selects what to render — for example:
+
+```text
+<!-- weaver .registry.spans[] | select(.type == "gen_ai.inference.client") -->
+<!-- weaver .registry.metrics[] | select(.name == "gen_ai.client.token.usage") -->
+<!-- weaver .registry.events[] | select(.name == "gen_ai.evaluation.result") -->
+<!-- weaver .refinements.spans[] | select(.id == "openai.inference.client") | .attributes |= map(select(.key != "gen_ai.provider.name")) -->
+```
+
+A `template:` prefix overrides the default `snippet.md.j2` with another template
+from the markdown target dir (e.g. render just the attribute table):
+
+```text
+<!-- weaver template:attributes_only.md.j2 .registry.spans[] | select(.type == "gen_ai.inference.client") -->
+```
+
+The templates live in
+[`test/fixtures/templates/registry/markdown`](test/fixtures/templates/registry/markdown)
+(vendored from
+[`semantic-conventions-genai`](https://github.com/open-telemetry/semantic-conventions-genai/)).
+Regeneration runs Weaver from the pinned `otel/weaver` Docker image (same tag
+as the vendored schema), so only Docker is needed:
+
+```bash
+make generate      # or: pnpm generate-docs
+```
+
+CI fails if the committed docs drift from `make generate`, so rerun it after
+editing the registry, the templates, or a snippet query, and commit the result.
+
 ## Release
 
 Two workflows, both `workflow_dispatch`:
