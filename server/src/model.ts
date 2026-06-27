@@ -131,6 +131,9 @@ function extractSignalDefs(
         def.instrument = readScalar(item, "instrument");
         def.unit = readScalar(item, "unit");
       }
+      if (kind === "attribute_group") {
+        def.visibility = readScalar(item, "visibility");
+      }
       ctx.defs.push(def);
     }
     extractAttributeRefs(item, ctx);

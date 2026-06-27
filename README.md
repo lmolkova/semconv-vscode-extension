@@ -25,6 +25,11 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 - **Diagnostics** — unresolved references and duplicate definitions flagged inline.
 - **Outline & symbol search** — per-file outline plus "Go to Symbol in Workspace"
   across the whole registry.
+- **Rename** — rename an attribute, signal, or refinement and update every
+  reference across the registry, including backtick- or `{}`-wrapped mentions of
+  the id in `brief` / `note` prose. The old id is kept as a deprecated
+  `renamed_to` stub so existing telemetry stays documented; internal attribute
+  groups are renamed in place without one.
 
 ### What links to what
 
@@ -64,8 +69,8 @@ the features above work automatically on YAML files.
 
 ## Limitations
 
-Not yet supported: completion in `ref:`, rename, document symbols, cross-registry
-resolution, and the legacy `definition/1` (`groups:`) format.
+Not yet supported: completion in `ref:`, cross-registry resolution, and the
+legacy `definition/1` (`groups:`) format.
 
 ## Contributing
 
