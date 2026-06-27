@@ -51,8 +51,8 @@ Release. Users can also install manually via `code --install-extension <file>.vs
 
 ## Other features
 
-- [ ] **Rename** 
-  — [x] rename an attribute / signal / refinement and update every
+- [ ] **Rename**
+      — [x] rename an attribute / signal / refinement and update every
       reference across the registry (`renameProvider`). Keeps the old id as a
       `deprecated: { reason: renamed, renamed_to }` stub; attribute_groups are
       internal and renamed in place with no stub.
