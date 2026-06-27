@@ -14,7 +14,11 @@ pnpm format                    # prettier --write (`pnpm format:check` to verify
 pnpm spell                     # cspell — add project terms to cspell.json's `words`
 pnpm test                      # typecheck + lint + format check + spell + unit tests
 pnpm test:integration          # @vscode/test-electron e2e
+make generate                  # regenerate test/fixtures/docs via Docker weaver (CI checks sync)
 ```
+
+Run `pnpm format` after making changes — Prettier owns formatting, and `pnpm test`'s
+format check (and CI) will fail on unformatted code.
 
 `pnpm test` is the full gate (what CI should run). ESLint uses `eslint.config.mjs`
 (flat config, type-aware via typescript-eslint's project service); Prettier owns

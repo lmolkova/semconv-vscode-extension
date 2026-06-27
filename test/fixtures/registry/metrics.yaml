@@ -1,0 +1,45 @@
+file_format: definition/2
+attribute_groups:
+  - id: metric_attributes.gen_ai
+    visibility: internal
+    attributes:
+      - ref: gen_ai.operation.name
+        requirement_level: required
+      - ref: gen_ai.provider.name
+        requirement_level: required
+      - ref: gen_ai.request.model
+        requirement_level: recommended
+      - ref: gen_ai.response.model
+        requirement_level: recommended
+metrics:
+  - name: gen_ai.client.token.usage
+    instrument: histogram
+    unit: "{token}"
+    requirement_level: recommended
+    stability: development
+    brief: Number of input and output tokens used.
+    entity_associations:
+      - gen_ai.agent
+    attributes:
+      - ref_group: metric_attributes.gen_ai
+      - ref: gen_ai.token.type
+        requirement_level: required
+  - name: gen_ai.client.operation.duration
+    instrument: histogram
+    unit: "s"
+    requirement_level: recommended
+    stability: development
+    brief: GenAI operation duration.
+    attributes:
+      - ref_group: metric_attributes.gen_ai
+      - ref: error.type
+        requirement_level:
+          conditionally_required: If the operation ended in an error.
+metric_refinements:
+  - id: openai.client.token.usage
+    ref: gen_ai.client.token.usage
+    stability: development
+    brief: OpenAI-specific refinement of the token usage metric.
+    attributes:
+      - ref: gen_ai.request.model
+        requirement_level: required

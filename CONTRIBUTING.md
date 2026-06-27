@@ -51,6 +51,60 @@ CI fails the drift check until the regenerated JSON is committed. To regenerate:
 pnpm sync-schema   # re-downloads the JSON for the pinned tag
 ```
 
+## Generated fixture docs
+
+[`test/fixtures/docs`](test/fixtures/docs) holds example Weaver-generated
+documentation for the test-fixture registry — the attribute registry pages
+under `registry/` and the hand-written signal docs (`spans.md`, `metrics.md`,
+`events.md`) whose tables Weaver fills in. The signal docs are authored by
+hand except for the blocks between `<!-- weaver {jq query} -->` and
+`<!-- endweaver -->` markers, which Weaver rewrites in place. The `jq` query
+selects what to render — for example:
+
+```text
+<!-- weaver .registry.spans[] | select(.type == "gen_ai.inference.client") -->
+<!-- weaver .registry.metrics[] | select(.name == "gen_ai.client.token.usage") -->
+<!-- weaver .registry.events[] | select(.name == "gen_ai.evaluation.result") -->
+<!-- weaver .refinements.spans[] | select(.id == "openai.inference.client") | .attributes |= map(select(.key != "gen_ai.provider.name")) -->
+```
+
+A `template:` prefix overrides the default `snippet.md.j2` with another template
+from the markdown target dir (e.g. render just the attribute table):
+
+```text
+<!-- weaver template:attributes_only.md.j2 .registry.spans[] | select(.type == "gen_ai.inference.client") -->
+```
+
+The templates are consumed from the shared
+[`opentelemetry-weaver-packages`](https://github.com/lmolkova/opentelemetry-weaver-packages)
+repo (the `templates/docs` package). Weaver fetches them directly
+via its remote `--templates <repo-url>` support; the repo and ref are pinned in
+the [`Makefile`](Makefile) (`TEMPLATES_REPO` / `TEMPLATES_REF`).
+
+```bash
+make generate      # or: pnpm generate-docs
+```
+
+> [!WARNING]
+> **`make generate` is temporarily broken and its CI check is disabled.** Now
+> that the templates are consumed remotely, full regeneration needs two fixes
+> that have not shipped yet:
+>
+> 1. **weaver** — `registry update-markdown` must stop requiring a `registry/`
+>    directory under `--templates` (fix written; pending release).
+> 2. **weaver-packages** — the markdown package and the `attributes_only.md.j2`
+>    template must be reachable on a published ref.
+>
+> Until then `make generate` will fail on the `update-markdown` step, and the
+> `generated-docs` job in [`ci.yml`](.github/workflows/ci.yml) is gated off with
+> `if: false`. Don't rely on regeneration to refresh fixtures in the meantime;
+> re-enable the check once both fixes land and `TEMPLATES_REF` points at a
+> released ref.
+
+Once it works again: CI fails if the committed docs drift from `make generate`,
+so rerun it after editing the registry, the templates, or a snippet query, and
+commit the result.
+
 ## Release
 
 Two workflows, both `workflow_dispatch`:
