@@ -18,6 +18,7 @@
     "opentelemetry",
     "definitionprovider",
     "referenceprovider",
+    "renamable",
     "esbuild",
     "vsce",
     "ovsx",

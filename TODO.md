@@ -51,7 +51,14 @@ Release. Users can also install manually via `code --install-extension <file>.vs
 
 ## Other features
 
-- [ ] **Rename** — rename an attribute key / group id and update every reference
-      across the registry (`renameProvider`).
+- [x] **Rename** — rename an attribute / signal / refinement and update every
+      reference across the registry (`renameProvider`). Keeps the old id as a
+      `deprecated: { reason: renamed, renamed_to }` stub; attribute_groups are
+      internal and renamed in place with no stub.
+  - [ ] Rewrite backtick mentions of the renamed id inside free-form YAML props
+        (`brief`, `note`, …) — e.g. `` `{gen_ai.operation.name}` `` in a span note.
+  - [ ] Rewrite mentions of the renamed id in Markdown docs across the workspace.
+  - [ ] Move the deprecated stub into a `deprecated.yaml` file (create it if it
+        doesn't exist) instead of leaving it inline next to the renamed entry.
 - [ ] **CodeLens / inlay hints** — e.g. reference counts above a definition,
       inherited-attribute hints on `extends` / `ref_group`.

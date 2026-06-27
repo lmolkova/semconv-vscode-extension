@@ -14,8 +14,10 @@ import {
   InitializeResult,
   Location,
   MarkupKind,
+  PrepareRenameParams,
   ProposedFeatures,
   ReferenceParams,
+  RenameParams,
   TextDocuments,
   TextDocumentSyncKind,
   WorkspaceSymbol,
@@ -30,6 +32,7 @@ import { pathAtParsed } from "./key-path";
 import { manifestDiagnostics } from "./manifest";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
+import { buildRenameEdits, prepareRename } from "./rename";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { schemaDiagnostics } from "./schema-validate";
 import { buildSemanticTokens, semanticTokensLegend } from "./semantic-tokens";
@@ -66,6 +69,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
       hoverProvider: true,
       documentSymbolProvider: true,
       workspaceSymbolProvider: true,
+      renameProvider: { prepareProvider: true },
       semanticTokensProvider: { legend: semanticTokensLegend, full: true },
     },
   };
@@ -231,6 +235,24 @@ connection.onWorkspaceSymbol((params: WorkspaceSymbolParams): WorkspaceSymbol[] 
     .searchDefinitions(params.query, MAX_WORKSPACE_SYMBOLS)
     .map((d) => WorkspaceSymbol.create(d.id, defKindToSymbolKind(d.kind), d.uri, d.nameRange)),
 );
+
+connection.onPrepareRename((params: PrepareRenameParams) =>
+  prepareRename(index, params.textDocument.uri, params.position),
+);
+
+connection.onRenameRequest((params: RenameParams) =>
+  buildRenameEdits(index, params.textDocument.uri, params.position, params.newName, docText),
+);
+
+async function docText(uri: string): Promise<string | undefined> {
+  const open = documents.get(uri);
+  if (open) return open.getText();
+  try {
+    return await fs.readFile(URI.parse(uri).fsPath, "utf8");
+  } catch {
+    return undefined;
+  }
+}
 
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);
