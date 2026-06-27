@@ -58,8 +58,18 @@ jobs:
   # Regenerate the fixture docs (registry attribute pages + the weaver snippet
   # tables in the hand-written signal docs) and fail if the committed output is
   # stale, so a fixture or template change can't merge without refreshed docs.
+  #
+  # TEMPORARILY DISABLED: the templates are no longer vendored here; they are
+  # consumed remotely from open-telemetry/opentelemetry-weaver-packages. Full
+  # regeneration depends on two unreleased fixes:
+  #   1. weaver: `update-markdown` no longer requiring a `registry/` dir.
+  #   2. weaver-packages: the markdown package + the `attributes_only.md.j2`
+  #      template reachable on a published ref.
+  # Re-enable (remove `if: false`) once both have shipped and TEMPLATES_REF in
+  # the Makefile points at a released ref.
   generated-docs:
     runs-on: ubuntu-latest
+    if: false
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 

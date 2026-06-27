@@ -18,8 +18,20 @@ WEAVER := docker run --rm \
 	$(WEAVER_IMAGE)
 
 REGISTRY := test/fixtures/registry
-TEMPLATES := test/fixtures/templates
 DOCS := test/fixtures/docs
+
+# Markdown templates are consumed from the shared weaver-packages repo rather
+# than vendored here, so they stay in sync with the rest of the org. Weaver
+# resolves a remote `-t`/--templates the same way it resolves a remote registry:
+# `<repo>@<refspec>[sub-folder]`. The package lives at `templates/registry/markdown`;
+# both `generate` and `update-markdown` auto-resolve the `registry/<target>` layout,
+# so the sub-folder is just `[templates]` and the target is `markdown`.
+# NOTE: pin to a branch or tag only -- a full commit-hash refspec makes weaver's
+# git layer (gix) panic, and a short hash is rejected as an unknown ref. Override
+# TEMPLATES_REF on the command line to test another ref: `make generate TEMPLATES_REF=my-branch`.
+TEMPLATES_REPO ?= https://github.com/lmolkova/opentelemetry-weaver-packages
+TEMPLATES_REF ?= reuse-semconv-templates
+TEMPLATES := $(TEMPLATES_REPO)@$(TEMPLATES_REF)[templates]
 
 # Pinned semantic-conventions tag used to build absolute links to upstream pages
 # (e.g. recording-errors.md) that the templates emit. Override on the command
@@ -40,7 +52,7 @@ generate-registry:
 	$(WEAVER) registry generate \
 		-r ./$(REGISTRY) \
 		--v2 \
-		-t ./$(TEMPLATES)/registry \
+		-t '$(TEMPLATES)' \
 		--param upstream_docs_base=$(UPSTREAM_DOCS_BASE) \
 		markdown \
 		./$(DOCS)/registry
@@ -51,7 +63,7 @@ generate-docs:
 	$(WEAVER) registry update-markdown \
 		-r ./$(REGISTRY) \
 		--v2 \
-		-t ./$(TEMPLATES) \
+		-t '$(TEMPLATES)' \
 		--target markdown \
 		--param registry_base_url=registry/ \
 		--param upstream_docs_base=$(UPSTREAM_DOCS_BASE) \

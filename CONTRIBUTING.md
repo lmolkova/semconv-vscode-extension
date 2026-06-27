@@ -75,19 +75,35 @@ from the markdown target dir (e.g. render just the attribute table):
 <!-- weaver template:attributes_only.md.j2 .registry.spans[] | select(.type == "gen_ai.inference.client") -->
 ```
 
-The templates live in
-[`test/fixtures/templates/registry/markdown`](test/fixtures/templates/registry/markdown)
-(vendored from
-[`semantic-conventions-genai`](https://github.com/open-telemetry/semantic-conventions-genai/)).
-Regeneration runs Weaver from the pinned `otel/weaver` Docker image (same tag
-as the vendored schema), so only Docker is needed:
+The templates are consumed from the shared
+[`opentelemetry-weaver-packages`](https://github.com/lmolkova/opentelemetry-weaver-packages)
+repo (the `templates/docs` package). Weaver fetches them directly
+via its remote `--templates <repo-url>` support; the repo and ref are pinned in
+the [`Makefile`](Makefile) (`TEMPLATES_REPO` / `TEMPLATES_REF`). 
 
 ```bash
 make generate      # or: pnpm generate-docs
 ```
 
-CI fails if the committed docs drift from `make generate`, so rerun it after
-editing the registry, the templates, or a snippet query, and commit the result.
+> [!WARNING]
+> **`make generate` is temporarily broken and its CI check is disabled.** Now
+> that the templates are consumed remotely, full regeneration needs two fixes
+> that have not shipped yet:
+>
+> 1. **weaver** — `registry update-markdown` must stop requiring a `registry/`
+>    directory under `--templates` (fix written; pending release).
+> 2. **weaver-packages** — the markdown package and the `attributes_only.md.j2`
+>    template must be reachable on a published ref.
+>
+> Until then `make generate` will fail on the `update-markdown` step, and the
+> `generated-docs` job in [`ci.yml`](.github/workflows/ci.yml) is gated off with
+> `if: false`. Don't rely on regeneration to refresh fixtures in the meantime;
+> re-enable the check once both fixes land and `TEMPLATES_REF` points at a
+> released ref.
+
+Once it works again: CI fails if the committed docs drift from `make generate`,
+so rerun it after editing the registry, the templates, or a snippet query, and
+commit the result.
 
 ## Release
 

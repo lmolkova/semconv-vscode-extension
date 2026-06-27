@@ -20,6 +20,8 @@ single span from the resolved registry by its `type`.
 
 A client call to a Generative AI model or service.
 
+**Span name** SHOULD be Span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`..
+
 **Span kind** SHOULD be `CLIENT`.
 
 **Span status** SHOULD follow the [Recording Errors](https://github.com/open-telemetry/semantic-conventions/blob/v1.42.0/docs/general/recording-errors.md) document.
@@ -66,6 +68,8 @@ showing that any jq expression is allowed after the selector.
 **Status:** ![Development](https://img.shields.io/badge/-development-blue)
 
 OpenAI-specific refinement of the inference client span.
+
+**Span name** SHOULD be openai.inference.client.
 
 **Span kind** SHOULD be `CLIENT`.
 
