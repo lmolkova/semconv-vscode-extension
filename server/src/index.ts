@@ -44,6 +44,10 @@ export class RegistryIndex {
     return this.docs.has(uri);
   }
 
+  documentUris(): string[] {
+    return Array.from(this.docs.keys());
+  }
+
   definitionsFor(id: string, kinds: readonly DefKind[]): Definition[] {
     const all = this.defIndex.get(id) ?? [];
     return all.filter((d) => kinds.includes(d.kind));

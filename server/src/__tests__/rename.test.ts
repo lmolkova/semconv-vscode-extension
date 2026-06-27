@@ -4,7 +4,7 @@ import { Position, Range, TextEdit } from "vscode-languageserver";
 import { RegistryIndex } from "../index";
 import { extract } from "../model";
 import { OffsetConverter } from "../parser";
-import { buildRenameEdits, prepareRename } from "../rename";
+import { buildRenameEdits, mentionEdits, prepareRename } from "../rename";
 import { DefKind } from "../types";
 
 const ATTRS = `file_format: definition/2
@@ -29,7 +29,9 @@ attribute_groups:
 spans:
   - type: gen_ai.inference.client
     stability: development
-    brief: A client call.
+    brief: A client call using \`gen_ai.request.model\`.
+    name:
+      note: Span name SHOULD be \`{gen_ai.request.model}\`.
     attributes:
       - ref_group: attributes.gen_ai.common
       - ref: gen_ai.request.model
@@ -103,6 +105,10 @@ describe("rename – attribute", () => {
     const signals = applyEdits(SIGNALS, edit!.changes![SIGNALS_URI]);
     expect(signals).not.toContain("ref: gen_ai.request.model\n");
     expect(signals.match(/ref: gen_ai\.request\.model_name/g)).toHaveLength(2);
+    // Backtick- and brace-wrapped mentions in free-form brief/note follow the rename.
+    expect(signals).toContain("brief: A client call using `gen_ai.request.model_name`.");
+    expect(signals).toContain("note: Span name SHOULD be `{gen_ai.request.model_name}`.");
+    expect(signals).not.toContain("gen_ai.request.model`");
   });
 
   it("can be triggered from a reference", async () => {
@@ -145,6 +151,24 @@ describe("rename – stub policy", () => {
     expect(signals).toContain("  - id: openai.inference.chat");
     expect(signals).toContain("      renamed_to: openai.inference.chat");
     expect(signals).toContain("  - id: openai.inference.client");
+  });
+});
+
+describe("mentionEdits", () => {
+  const doc = `file_format: definition/2
+attributes:
+  - key: a.b
+    brief: Uses \`a.b\` and {a.b}; ignores \`a.b.c\` and plain a.b.
+    note: nested \`{a.b}\` template.
+    examples: \`a.b\`
+`;
+
+  it("rewrites wrapped mentions only inside brief/note, leaving similar ids alone", () => {
+    const out = applyEdits(doc, mentionEdits(doc, "a.b", "a.c"));
+    expect(out).toContain("brief: Uses `a.c` and {a.c}; ignores `a.b.c` and plain a.b.");
+    expect(out).toContain("note: nested `{a.c}` template.");
+    // `examples` is not a free-form prose prop — left untouched.
+    expect(out).toContain("examples: `a.b`");
   });
 });
 

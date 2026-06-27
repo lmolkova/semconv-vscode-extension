@@ -5,8 +5,9 @@ User-facing changes to the extension. Newest first.
 ## Unreleased
 
 - Rename (F2) an attribute, signal, or refinement and update every reference
-  across the registry. The old id is kept as a deprecated `renamed_to` stub;
-  internal attribute groups are renamed in place without one.
+  across the registry, including backtick- or `{}`-wrapped mentions of the id in
+  free-form `brief` / `note` text. The old id is kept as a deprecated
+  `renamed_to` stub; internal attribute groups are renamed in place without one.
 
 ## 0.2.0
 
