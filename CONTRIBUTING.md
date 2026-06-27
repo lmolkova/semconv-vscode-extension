@@ -79,7 +79,7 @@ The templates are consumed from the shared
 [`opentelemetry-weaver-packages`](https://github.com/lmolkova/opentelemetry-weaver-packages)
 repo (the `templates/docs` package). Weaver fetches them directly
 via its remote `--templates <repo-url>` support; the repo and ref are pinned in
-the [`Makefile`](Makefile) (`TEMPLATES_REPO` / `TEMPLATES_REF`). 
+the [`Makefile`](Makefile) (`TEMPLATES_REPO` / `TEMPLATES_REF`).
 
 ```bash
 make generate      # or: pnpm generate-docs

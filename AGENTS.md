@@ -17,6 +17,9 @@ pnpm test:integration          # @vscode/test-electron e2e
 make generate                  # regenerate test/fixtures/docs via Docker weaver (CI checks sync)
 ```
 
+Run `pnpm format` after making changes — Prettier owns formatting, and `pnpm test`'s
+format check (and CI) will fail on unformatted code.
+
 `pnpm test` is the full gate (what CI should run). ESLint uses `eslint.config.mjs`
 (flat config, type-aware via typescript-eslint's project service); Prettier owns
 formatting and is wired into ESLint via `eslint-config-prettier` so the two don't
