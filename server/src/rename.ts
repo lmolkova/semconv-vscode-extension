@@ -6,8 +6,8 @@ import { OffsetConverter, parseSemconv } from "./parser";
 import { Definition, DefKind, RESOLUTION } from "./types";
 
 // Renaming a definition keeps the old id as a `deprecated: { reason: renamed,
-// renamed_to }` stub — except attribute_groups, which are internal groupings and
-// are renamed in place with no deprecation trail.
+// renamed_to }` stub — except internal attribute groups, which are private
+// groupings with no telemetry history and are renamed in place (see `keepsStub`).
 const RENAMABLE: ReadonlySet<DefKind> = new Set<DefKind>([
   "attribute",
   "attribute_group",
@@ -21,7 +21,11 @@ const RENAMABLE: ReadonlySet<DefKind> = new Set<DefKind>([
   "span_refinement",
 ]);
 
-const NO_STUB_KINDS: ReadonlySet<DefKind> = new Set<DefKind>(["attribute_group"]);
+// Public attribute groups carry telemetry meaning, so they keep a stub like
+// signals; only `visibility: internal` groups are renamed in place.
+function keepsStub(def: Definition): boolean {
+  return !(def.kind === "attribute_group" && def.visibility === "internal");
+}
 
 export interface PrepareRename {
   range: Range;
@@ -81,7 +85,7 @@ export async function buildRenameEdits(
 
   for (const def of targets) {
     add(def.uri, TextEdit.replace(def.nameRange, newName));
-    if (!NO_STUB_KINDS.has(def.kind)) {
+    if (keepsStub(def)) {
       const text = await getText(def.uri);
       const stub = text && deprecatedStub(text, def, newName);
       if (stub) add(def.uri, stub);
@@ -137,6 +141,8 @@ const WRAPPERS: readonly [string, string][] = [
 
 /** Rewrites backtick- or brace-wrapped mentions of `oldId` in `brief`/`note` text. */
 export function mentionEdits(text: string, oldId: string, newId: string): TextEdit[] {
+  // Wrapped mentions all contain the id verbatim, so skip the parse when it's absent.
+  if (!text.includes(oldId)) return [];
   const { doc, offsets } = parseSemconv(text);
   const edits: TextEdit[] = [];
   visit(doc, {

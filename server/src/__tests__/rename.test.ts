@@ -26,6 +26,13 @@ attribute_groups:
     attributes:
       - ref: gen_ai.request.model
         requirement_level: required
+  - id: attributes.gen_ai.public
+    visibility: public
+    stability: development
+    brief: Public group.
+    attributes:
+      - ref: gen_ai.request.model
+        requirement_level: recommended
 spans:
   - type: gen_ai.inference.client
     stability: development
@@ -104,7 +111,7 @@ describe("rename – attribute", () => {
 
     const signals = applyEdits(SIGNALS, edit!.changes![SIGNALS_URI]);
     expect(signals).not.toContain("ref: gen_ai.request.model\n");
-    expect(signals.match(/ref: gen_ai\.request\.model_name/g)).toHaveLength(2);
+    expect(signals.match(/ref: gen_ai\.request\.model_name/g)).toHaveLength(3);
     // Backtick- and brace-wrapped mentions in free-form brief/note follow the rename.
     expect(signals).toContain("brief: A client call using `gen_ai.request.model_name`.");
     expect(signals).toContain("note: Span name SHOULD be `{gen_ai.request.model_name}`.");
@@ -151,6 +158,21 @@ describe("rename – stub policy", () => {
     expect(signals).toContain("  - id: openai.inference.chat");
     expect(signals).toContain("      renamed_to: openai.inference.chat");
     expect(signals).toContain("  - id: openai.inference.client");
+  });
+
+  it("keeps a deprecated stub for public attribute groups", async () => {
+    const { index, texts } = setup();
+    const edit = await buildRenameEdits(
+      index,
+      SIGNALS_URI,
+      defPos(index, "attributes.gen_ai.public", "attribute_group"),
+      "attributes.gen_ai.exported",
+      getText(texts),
+    );
+    const signals = applyEdits(SIGNALS, edit!.changes![SIGNALS_URI]);
+    expect(signals).toContain("  - id: attributes.gen_ai.exported");
+    expect(signals).toContain("      renamed_to: attributes.gen_ai.exported");
+    expect(signals).toContain("  - id: attributes.gen_ai.public");
   });
 });
 

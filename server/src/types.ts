@@ -48,6 +48,7 @@ export interface Definition {
   type?: string;
   instrument?: string;
   unit?: string;
+  visibility?: string;
 }
 
 export interface Reference {

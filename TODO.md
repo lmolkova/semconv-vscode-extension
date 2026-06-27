@@ -54,8 +54,8 @@ Release. Users can also install manually via `code --install-extension <file>.vs
 - [ ] **Rename**
       — [x] rename an attribute / signal / refinement and update every
       reference across the registry (`renameProvider`). Keeps the old id as a
-      `deprecated: { reason: renamed, renamed_to }` stub; attribute_groups are
-      internal and renamed in place with no stub.
+      `deprecated: { reason: renamed, renamed_to }` stub; internal
+      attribute_groups are renamed in place with no stub.
   - [x] Rewrite backtick- or `{}`-wrapped mentions of the renamed id inside
         free-form YAML props (`brief`, `note`) — e.g. `` `gen_ai.operation.name` ``,
         `{gen_ai.operation.name}`.
