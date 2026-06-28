@@ -13,8 +13,8 @@ function buildIndex(): RegistryIndex {
   const idx = new RegistryIndex();
   for (const name of ["registry.yaml", "entities.yaml", "spans.yaml"]) {
     const text = fs.readFileSync(path.join(REG, name), "utf8");
-    const { defs, refs, hasImports } = extract(text, uriOf(name));
-    idx.setDocument(uriOf(name), defs, refs, hasImports);
+    const { defs, refs, proseRefs, hasImports } = extract(text, uriOf(name));
+    idx.setDocument(uriOf(name), defs, refs, proseRefs, hasImports);
   }
   return idx;
 }
@@ -24,8 +24,8 @@ function buildIndex(): RegistryIndex {
 function indexDiagnosticsFixture(idx: RegistryIndex): string {
   const uri = `file://${path.join(DIAG, "unresolved.yaml")}`;
   const text = fs.readFileSync(path.join(DIAG, "unresolved.yaml"), "utf8");
-  const { defs, refs, hasImports } = extract(text, uri);
-  idx.setDocument(uri, defs, refs, hasImports);
+  const { defs, refs, proseRefs, hasImports } = extract(text, uri);
+  idx.setDocument(uri, defs, refs, proseRefs, hasImports);
   return uri;
 }
 
@@ -61,6 +61,62 @@ describe("RegistryIndex – cross-file resolution", () => {
     );
   });
 });
+
+describe("RegistryIndex – prose mentions", () => {
+  const ATTRS = `file_format: definition/2
+attributes:
+  - key: a.b
+    type: string
+    stability: development
+    brief: x
+`;
+  const USER = `file_format: definition/2
+attributes:
+  - key: c.d
+    type: string
+    stability: development
+    brief: See \`a.b\` and {a.b}; and {not.defined} too.
+`;
+  function setup(): RegistryIndex {
+    const idx = new RegistryIndex();
+    for (const [name, text] of [
+      ["attrs.yaml", ATTRS],
+      ["user.yaml", USER],
+    ]) {
+      const { defs, refs, proseRefs, hasImports } = extract(text, uriOf(name));
+      idx.setDocument(uriOf(name), defs, refs, proseRefs, hasImports);
+    }
+    return idx;
+  }
+
+  it("folds resolved prose mentions into referencesFor", () => {
+    const refs = setup().referencesFor("a.b", "attribute");
+    expect(refs).toHaveLength(2);
+    expect(refs.every((r) => r.refKind === "prose_ref" && r.uri === uriOf("user.yaml"))).toBe(true);
+  });
+
+  it("symbolAt returns a prose mention only where it resolves", () => {
+    const idx = setup();
+    const userText = USER;
+    const onDefined = posOfNth(userText, "a.b", 0); // `a.b`
+    const onUndefined = posOfNth(userText, "not.defined", 0);
+    expect(idx.symbolAt(uriOf("user.yaml"), onDefined)?.kind).toBe("reference");
+    expect(idx.symbolAt(uriOf("user.yaml"), onUndefined)).toBeUndefined();
+  });
+
+  it("resolvedProseRefs drops mentions with no definition", () => {
+    const resolved = setup().resolvedProseRefs(uriOf("user.yaml"));
+    expect(resolved.map((r) => r.id).sort()).toEqual(["a.b", "a.b"]);
+  });
+});
+
+function posOfNth(text: string, needle: string, nth: number) {
+  let idx = -1;
+  for (let i = 0; i <= nth; i++) idx = text.indexOf(needle, idx + 1);
+  const before = text.slice(0, idx);
+  const line = before.split("\n").length - 1;
+  return { line, character: idx - (before.lastIndexOf("\n") + 1) + 1 };
+}
 
 describe("RegistryIndex – symbolAt", () => {
   it("locates a reference token and a definition token", () => {
@@ -119,8 +175,8 @@ describe("RegistryIndex – symbol queries", () => {
     expect(first.some((s) => s.name === "gen_ai.provider.name")).toBe(true);
 
     const text = fs.readFileSync(path.join(REG, "registry.yaml"), "utf8");
-    const { defs, refs, hasImports } = extract(text, uriOf("registry.yaml"));
-    idx.setDocument(uriOf("registry.yaml"), defs, refs, hasImports);
+    const { defs, refs, proseRefs, hasImports } = extract(text, uriOf("registry.yaml"));
+    idx.setDocument(uriOf("registry.yaml"), defs, refs, proseRefs, hasImports);
     expect(idx.documentSymbols(uriOf("registry.yaml"))).not.toBe(first);
   });
 });
@@ -138,15 +194,15 @@ describe("RegistryIndex – diagnostics rules", () => {
     const idx = buildIndex();
     const diag = indexDiagnosticsFixture(idx);
     expect(idx.unresolvedReferences(diag).length).toBeGreaterThan(0);
-    idx.setDocument(uriOf("imports.yaml"), [], [], /* hasImports */ true);
+    idx.setDocument(uriOf("imports.yaml"), [], [], [], /* hasImports */ true);
     expect(idx.unresolvedReferences(diag)).toHaveLength(0);
   });
 
   it("detects duplicate definitions", () => {
     const idx = buildIndex();
     const text = fs.readFileSync(path.join(REG, "registry.yaml"), "utf8");
-    const { defs, refs, hasImports } = extract(text, uriOf("registry-copy.yaml"));
-    idx.setDocument(uriOf("registry-copy.yaml"), defs, refs, hasImports);
+    const { defs, refs, proseRefs, hasImports } = extract(text, uriOf("registry-copy.yaml"));
+    idx.setDocument(uriOf("registry-copy.yaml"), defs, refs, proseRefs, hasImports);
 
     const dups = idx.duplicateDefinitions(uriOf("registry-copy.yaml"));
     expect(dups.map((d) => d.id)).toContain("gen_ai.provider.name");

@@ -77,6 +77,17 @@
             "comment"
           ]
         }
+      },
+      {
+        "language": "markdown",
+        "scopes": {
+          "semconvReference": [
+            "entity.name.type"
+          ],
+          "semconvReference.unresolved": [
+            "invalid"
+          ]
+        }
       }
     ],
     "configurationDefaults": {

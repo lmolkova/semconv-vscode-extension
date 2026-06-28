@@ -4,7 +4,7 @@ import { Position, Range, TextEdit } from "vscode-languageserver";
 import { RegistryIndex } from "../index";
 import { extract } from "../model";
 import { OffsetConverter } from "../parser";
-import { buildRenameEdits, mentionEdits, prepareRename } from "../rename";
+import { buildRenameEdits, prepareRename } from "../rename";
 import { DefKind } from "../types";
 
 const ATTRS = `file_format: definition/2
@@ -60,8 +60,8 @@ function setup(): { index: RegistryIndex; texts: Map<string, string> } {
     [SIGNALS_URI, SIGNALS],
   ]);
   for (const [uri, text] of texts) {
-    const { defs, refs, hasImports } = extract(text, uri);
-    index.setDocument(uri, defs, refs, hasImports);
+    const { defs, refs, proseRefs, hasImports } = extract(text, uri);
+    index.setDocument(uri, defs, refs, proseRefs, hasImports);
   }
   return { index, texts };
 }
@@ -173,24 +173,6 @@ describe("rename – stub policy", () => {
     expect(signals).toContain("  - id: attributes.gen_ai.exported");
     expect(signals).toContain("      renamed_to: attributes.gen_ai.exported");
     expect(signals).toContain("  - id: attributes.gen_ai.public");
-  });
-});
-
-describe("mentionEdits", () => {
-  const doc = `file_format: definition/2
-attributes:
-  - key: a.b
-    brief: Uses \`a.b\` and {a.b}; ignores \`a.b.c\` and plain a.b.
-    note: nested \`{a.b}\` template.
-    examples: \`a.b\`
-`;
-
-  it("rewrites wrapped mentions only inside brief/note, leaving similar ids alone", () => {
-    const out = applyEdits(doc, mentionEdits(doc, "a.b", "a.c"));
-    expect(out).toContain("brief: Uses `a.c` and {a.c}; ignores `a.b.c` and plain a.b.");
-    expect(out).toContain("note: nested `{a.c}` template.");
-    // `examples` is not a free-form prose prop — left untouched.
-    expect(out).toContain("examples: `a.b`");
   });
 });
 

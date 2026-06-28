@@ -1,5 +1,6 @@
-import { isMap, Scalar, YAMLMap, YAMLSeq } from "yaml";
+import { isMap, isScalar, Scalar, visit, YAMLMap, YAMLSeq } from "yaml";
 
+import { FREE_FORM_KEYS, wrappedMentions } from "./mentions";
 import {
   mapItems,
   OffsetConverter,
@@ -15,6 +16,10 @@ export interface ExtractResult {
   isSemconv: boolean;
   defs: Definition[];
   refs: Reference[];
+  // Backtick-/brace-wrapped id mentions in `brief`/`note` prose. Kept apart from
+  // `refs` so they never trigger unresolved-reference diagnostics — a mention is
+  // only treated as a reference where it resolves to a real definition.
+  proseRefs: Reference[];
   hasImports: boolean;
 }
 
@@ -39,7 +44,7 @@ export function extract(text: string, uri: string): ExtractResult {
   const refs: Reference[] = [];
 
   if (parsed.kind !== "definition" || !parsed.root) {
-    return { isSemconv: false, defs, refs, hasImports: false };
+    return { isSemconv: false, defs, refs, proseRefs: [], hasImports: false };
   }
 
   const root = parsed.root;
@@ -54,7 +59,35 @@ export function extract(text: string, uri: string): ExtractResult {
     extractRefinements(root, spec.array, spec.defKind, spec.refKind, ctx);
   }
 
-  return { isSemconv: true, defs, refs, hasImports: root.has("imports") };
+  const proseRefs = extractProseMentions(parsed.doc, text, uri, off);
+  return { isSemconv: true, defs, refs, proseRefs, hasImports: root.has("imports") };
+}
+
+function extractProseMentions(
+  doc: ReturnType<typeof parseSemconv>["doc"],
+  text: string,
+  uri: string,
+  off: OffsetConverter,
+): Reference[] {
+  const proseRefs: Reference[] = [];
+  visit(doc, {
+    Pair(_, pair) {
+      const key = isScalar(pair.key) ? pair.key.value : pair.key;
+      if (typeof key !== "string" || !FREE_FORM_KEYS.has(key)) return;
+      const value = pair.value;
+      if (!isScalar(value) || typeof value.value !== "string" || !value.range) return;
+      const from = value.range[0];
+      for (const m of wrappedMentions(text.slice(from, value.range[1]))) {
+        proseRefs.push({
+          refKind: "prose_ref",
+          id: m.id,
+          uri,
+          range: off.range(from + m.start, from + m.end),
+        });
+      }
+    },
+  });
+  return proseRefs;
 }
 
 interface Ctx {

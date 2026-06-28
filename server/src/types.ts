@@ -18,7 +18,8 @@ export type DefKind =
 // The YAML field each reference comes from: attribute_ref -> ref;
 // group_ref -> ref_group; entity_assoc -> entity_associations[]; the
 // *_refinement_ref kinds -> a refinement's own ref. The md_* kinds come from
-// `<!-- weaver ... -->` snippet queries in markdown. Resolution targets: RESOLUTION.
+// `<!-- weaver ... -->` snippet queries in markdown. prose_ref is a backtick- or
+// brace-wrapped id in free-form `brief`/`note` text. Resolution targets: RESOLUTION.
 export type RefKind =
   | "attribute_ref"
   | "group_ref"
@@ -27,6 +28,7 @@ export type RefKind =
   | "event_refinement_ref"
   | "metric_refinement_ref"
   | "span_refinement_ref"
+  | "prose_ref"
   | "md_attribute_ref"
   | "md_event_ref"
   | "md_metric_ref"
@@ -37,6 +39,22 @@ export type RefKind =
   | "md_span_refinement_ref"
   | "md_entity_refinement_ref";
 
+// A prose mention names something by id without saying which kind, so it resolves
+// against every definition kind.
+const ALL_DEF_KINDS: DefKind[] = [
+  "attribute",
+  "attribute_group",
+  "entity",
+  "event",
+  "metric",
+  "span",
+  "enum_member",
+  "entity_refinement",
+  "event_refinement",
+  "metric_refinement",
+  "span_refinement",
+];
+
 export const RESOLUTION: Record<RefKind, DefKind[]> = {
   attribute_ref: ["attribute"],
   group_ref: ["attribute_group"],
@@ -45,6 +63,7 @@ export const RESOLUTION: Record<RefKind, DefKind[]> = {
   event_refinement_ref: ["event"],
   metric_refinement_ref: ["metric"],
   span_refinement_ref: ["span"],
+  prose_ref: ALL_DEF_KINDS,
   md_attribute_ref: ["attribute"],
   md_event_ref: ["event"],
   md_metric_ref: ["metric"],

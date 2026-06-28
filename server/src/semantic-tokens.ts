@@ -48,8 +48,6 @@ const DEF_TOKEN: Record<DefKind, TokenType> = {
   span_refinement: DEFINITION,
 };
 
-// The md_* kinds never reach here (markdown gets no semantic tokens); listed only
-// to keep this map exhaustive over RefKind.
 const REF_TOKEN: Record<RefKind, TokenType> = {
   attribute_ref: REFERENCE,
   group_ref: REFERENCE,
@@ -58,6 +56,7 @@ const REF_TOKEN: Record<RefKind, TokenType> = {
   event_refinement_ref: REFERENCE,
   metric_refinement_ref: REFERENCE,
   span_refinement_ref: REFERENCE,
+  prose_ref: REFERENCE,
   md_attribute_ref: REFERENCE,
   md_event_ref: REFERENCE,
   md_metric_ref: REFERENCE,
@@ -74,6 +73,7 @@ export function buildSemanticTokens(
   defs: Definition[],
   refs: Reference[],
   unresolved: Set<Reference>,
+  proseRefs: Reference[],
 ): SemanticTokens {
   const tokens: { line: number; char: number; length: number; type: number; mods: number }[] = [];
 
@@ -94,6 +94,16 @@ export function buildSemanticTokens(
   for (const ref of refs) {
     add(ref.range, REF_TOKEN[ref.refKind], unresolved.has(ref) ? UNRESOLVED : 0);
   }
+  // Resolved prose mentions render as references; the surrounding prose stays plain
+  // text via the split below.
+  for (const ref of proseRefs) add(ref.range, REFERENCE, 0);
+
+  // The brief/note ranges carrying a prose mention, so the plain-text pass can emit
+  // the prose around the (already-tokenized) mention without overlapping it.
+  const proseSpans = proseRefs.map((r) => ({
+    start: parsed.offsets.offset(r.range.start),
+    end: parsed.offsets.offset(r.range.end),
+  }));
 
   // Positions already claimed by a def/ref id; the plain-text pass must not double-token them.
   const claimed = new Set(tokens.map((t) => `${t.line}:${t.char}`));
@@ -104,6 +114,26 @@ export function buildSemanticTokens(
       if (typeof value.value !== "string") return;
       const range = tokenRange(value, parsed.offsets);
       if (claimed.has(`${range.start.line}:${range.start.character}`)) return;
+
+      // A brief/note value carrying prose mentions: emit the prose between/around the
+      // mention tokens as plain text, leaving the mentions as the references above.
+      if (value.range) {
+        const [from, to] = value.range;
+        const spans = proseSpans
+          .filter((s) => s.start >= from && s.end <= to)
+          .sort((a, b) => a.start - b.start);
+        if (spans.length) {
+          let cursor = from;
+          for (const s of spans) {
+            if (s.start < cursor) continue; // overlapping (nested) mention
+            if (s.start > cursor) add(parsed.offsets.range(cursor, s.start), "semconvText", 0);
+            cursor = s.end;
+          }
+          if (cursor < to) add(parsed.offsets.range(cursor, to), "semconvText", 0);
+          return;
+        }
+      }
+
       const info = resolver.describeKeyPath(steps);
       let type: TokenType = "semconvText";
       if (info?.enumValues?.includes(value.value)) type = "semconvEnumValue";
@@ -117,5 +147,33 @@ export function buildSemanticTokens(
   tokens.sort((a, b) => a.line - b.line || a.char - b.char);
   const builder = new SemanticTokensBuilder();
   for (const t of tokens) builder.push(t.line, t.char, t.length, t.type, t.mods);
+  return builder.build();
+}
+
+/**
+ * Tokens for a markdown doc: the semconv ids inside `<!-- weaver ... -->` snippet
+ * queries, highlighted as references (single-line, like the YAML refs they mirror).
+ */
+export function buildMarkdownSemanticTokens(
+  refs: Reference[],
+  unresolved: Set<Reference>,
+): SemanticTokens {
+  const builder = new SemanticTokensBuilder();
+  const sorted = [...refs].sort(
+    (a, b) =>
+      a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character,
+  );
+  for (const ref of sorted) {
+    const { start, end } = ref.range;
+    if (start.line !== end.line) continue;
+    const mods = unresolved.has(ref) ? UNRESOLVED : 0;
+    builder.push(
+      start.line,
+      start.character,
+      end.character - start.character,
+      TYPE_INDEX[REF_TOKEN[ref.refKind]],
+      mods,
+    );
+  }
   return builder.build();
 }

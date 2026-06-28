@@ -36,7 +36,11 @@ import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { buildRenameEdits, prepareRename } from "./rename";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { schemaDiagnostics } from "./schema-validate";
-import { buildSemanticTokens, semanticTokensLegend } from "./semantic-tokens";
+import {
+  buildMarkdownSemanticTokens,
+  buildSemanticTokens,
+  semanticTokensLegend,
+} from "./semantic-tokens";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -109,13 +113,13 @@ async function scanWorkspace(): Promise<void> {
         if (isMarkdown(uri)) {
           if (looksLikeWeaverDoc(text)) {
             const refs = extractMarkdown(text, uri);
-            if (refs.length) index.setDocument(uri, [], refs, false);
+            if (refs.length) index.setDocument(uri, [], refs, [], false);
           }
           continue;
         }
         if (!looksLikeSemconv(text)) continue;
-        const { isSemconv, defs, refs, hasImports } = extract(text, uri);
-        if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
+        const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
+        if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
       } catch {
         // ignore unreadable / unparseable files
       }
@@ -126,13 +130,13 @@ async function scanWorkspace(): Promise<void> {
 function indexDocument(doc: TextDocument): void {
   if (isMarkdown(doc.uri)) {
     const refs = extractMarkdown(doc.getText(), doc.uri);
-    if (refs.length) index.setDocument(doc.uri, [], refs, false);
+    if (refs.length) index.setDocument(doc.uri, [], refs, [], false);
     else index.removeDocument(doc.uri);
     return;
   }
-  const { isSemconv, defs, refs, hasImports } = extract(doc.getText(), doc.uri);
+  const { isSemconv, defs, refs, proseRefs, hasImports } = extract(doc.getText(), doc.uri);
   if (isSemconv) {
-    index.setDocument(doc.uri, defs, refs, hasImports);
+    index.setDocument(doc.uri, defs, refs, proseRefs, hasImports);
   } else {
     index.removeDocument(doc.uri);
   }
@@ -167,12 +171,12 @@ async function scanFile(uri: string): Promise<void> {
     const text = await fs.readFile(URI.parse(uri).fsPath, "utf8");
     if (isMarkdown(uri)) {
       const refs = extractMarkdown(text, uri);
-      if (refs.length) index.setDocument(uri, [], refs, false);
+      if (refs.length) index.setDocument(uri, [], refs, [], false);
       else index.removeDocument(uri);
       return;
     }
-    const { isSemconv, defs, refs, hasImports } = extract(text, uri);
-    if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
+    const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
+    if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
     else index.removeDocument(uri);
   } catch {
     index.removeDocument(uri);
@@ -227,6 +231,7 @@ function validate(doc: TextDocument): void {
 }
 
 connection.onDefinition((params: DefinitionParams): Location[] => {
+  // A resolved `key`/{key} prose mention is a reference symbol too (see symbolAt).
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
   if (!symbol) return [];
   if (symbol.kind === "reference") {
@@ -244,6 +249,7 @@ connection.onReferences((params: ReferenceParams): Location[] => {
 
   const id = symbol.kind === "definition" ? symbol.def.id : symbol.ref.id;
   const defKind = symbol.kind === "definition" ? symbol.def.kind : undefined;
+  // referencesFor folds in prose mentions, so this covers brief/note text too.
   const locations = index.referencesFor(id, defKind).map((r) => Location.create(r.uri, r.range));
 
   if (params.context.includeDeclaration) {
@@ -285,11 +291,17 @@ async function docText(uri: string): Promise<string | undefined> {
 
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);
-  // Only definition/2 and manifest docs get tokens; plain YAML (no kind) is left to YAML.
-  if (!doc || isMarkdown(doc.uri) || !parsedFor(doc).kind) return { data: [] };
+  if (!doc) return { data: [] };
+  if (isMarkdown(doc.uri)) {
+    const { refs } = index.localSymbols(doc.uri);
+    return buildMarkdownSemanticTokens(refs, new Set(index.unresolvedReferences(doc.uri)));
+  }
+  // Plain YAML (no kind) is left to the YAML extension.
+  if (!parsedFor(doc).kind) return { data: [] };
   const { defs, refs } = index.localSymbols(doc.uri);
   const unresolved = new Set(index.unresolvedReferences(doc.uri));
-  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved);
+  const proseRefs = index.resolvedProseRefs(doc.uri);
+  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved, proseRefs);
 });
 
 connection.onHover((params: HoverParams): Hover | null => {

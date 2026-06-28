@@ -1,8 +1,7 @@
 import { Position, Range, TextEdit, WorkspaceEdit } from "vscode-languageserver";
-import { isScalar, visit } from "yaml";
 
 import { RegistryIndex } from "./index";
-import { OffsetConverter, parseSemconv } from "./parser";
+import { OffsetConverter } from "./parser";
 import { Definition, DefKind, RESOLUTION } from "./types";
 
 // Renaming a definition keeps the old id as a `deprecated: { reason: renamed,
@@ -92,15 +91,9 @@ export async function buildRenameEdits(
     }
   }
 
+  // referencesFor folds in prose mentions, so `brief`/`note` text is rewritten too.
   for (const ref of index.referencesFor(oldId, kind)) {
     add(ref.uri, TextEdit.replace(ref.range, newName));
-  }
-
-  for (const u of index.documentUris()) {
-    if (u.endsWith(".md")) continue; // weaver refs already covered via referencesFor
-    const text = await getText(u);
-    if (!text) continue;
-    for (const edit of mentionEdits(text, oldId, newName)) add(u, edit);
   }
 
   const changes: Record<string, TextEdit[]> = {};
@@ -128,41 +121,4 @@ function deprecatedStub(text: string, def: Definition, newName: string): TextEdi
     `${indent}  note: ${JSON.stringify(`Renamed to \`${newName}\`.`)}`;
 
   return TextEdit.insert(off.position(end), `\n${block}\n${deprecated}`);
-}
-
-// Free-form prose props where an id is mentioned by name rather than referenced.
-const FREE_FORM_KEYS: ReadonlySet<string> = new Set(["brief", "note"]);
-
-// A mention is the id wrapped in backticks (`id`) or a template brace ({id}); the
-// closing delimiter bounds the match, so `foo.bar` never matches inside `foo.bar.baz`.
-const WRAPPERS: readonly [string, string][] = [
-  ["`", "`"],
-  ["{", "}"],
-];
-
-/** Rewrites backtick- or brace-wrapped mentions of `oldId` in `brief`/`note` text. */
-export function mentionEdits(text: string, oldId: string, newId: string): TextEdit[] {
-  // Wrapped mentions all contain the id verbatim, so skip the parse when it's absent.
-  if (!text.includes(oldId)) return [];
-  const { doc, offsets } = parseSemconv(text);
-  const edits: TextEdit[] = [];
-  visit(doc, {
-    Pair(_, pair) {
-      const key = isScalar(pair.key) ? pair.key.value : pair.key;
-      if (typeof key !== "string" || !FREE_FORM_KEYS.has(key)) return;
-      const value = pair.value;
-      if (!isScalar(value) || typeof value.value !== "string" || !value.range) return;
-
-      const from = value.range[0];
-      const src = text.slice(from, value.range[1]);
-      for (const [open, close] of WRAPPERS) {
-        const needle = open + oldId + close;
-        for (let i = src.indexOf(needle); i !== -1; i = src.indexOf(needle, i + needle.length)) {
-          const idStart = from + i + open.length;
-          edits.push(TextEdit.replace(offsets.range(idStart, idStart + oldId.length), newId));
-        }
-      }
-    },
-  });
-  return edits;
 }

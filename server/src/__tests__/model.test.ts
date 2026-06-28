@@ -83,3 +83,29 @@ describe("extract – references", () => {
     expect(res.defs).toHaveLength(0);
   });
 });
+
+describe("extract – prose mentions", () => {
+  const doc = `file_format: definition/2
+attributes:
+  - key: a.b
+    brief: See \`a.b\` and {a.b.c}; also \`a.b.x.y\` and plain a.b.
+    note: also {a.b} here.
+    examples: \`a.b\`
+`;
+
+  it("captures backtick/brace mentions in brief/note as prose_ref, spanning the id", () => {
+    const { proseRefs } = extract(doc, "file:///x.yaml");
+    expect(proseRefs.every((r) => r.refKind === "prose_ref")).toBe(true);
+    // brief backticks `a.b`, `a.b.x.y` then brace {a.b.c}; note brace {a.b};
+    // `examples` is not free-form prose, so it is skipped.
+    expect(proseRefs.map((r) => r.id)).toEqual(["a.b", "a.b.x.y", "a.b.c", "a.b"]);
+    for (const ref of proseRefs) {
+      expect(tokenText(doc, ref.range)).toBe(ref.id);
+    }
+  });
+
+  it("keeps prose mentions out of the structural refs list", () => {
+    const { refs } = extract(doc, "file:///x.yaml");
+    expect(refs).toHaveLength(0);
+  });
+});
