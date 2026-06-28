@@ -33,10 +33,14 @@ import { manifestDiagnostics } from "./manifest";
 import { extractMarkdown, looksLikeWeaverDoc } from "./markdown";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
-import { buildRenameEdits, prepareRename } from "./rename";
+import { buildRenameEdits, mentionRanges, mentionsAt, prepareRename } from "./rename";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { schemaDiagnostics } from "./schema-validate";
-import { buildSemanticTokens, semanticTokensLegend } from "./semantic-tokens";
+import {
+  buildMarkdownSemanticTokens,
+  buildSemanticTokens,
+  semanticTokensLegend,
+} from "./semantic-tokens";
 import { Definition, RESOLUTION } from "./types";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -226,25 +230,44 @@ function validate(doc: TextDocument): void {
   void connection.sendDiagnostics({ uri: doc.uri, diagnostics });
 }
 
-connection.onDefinition((params: DefinitionParams): Location[] => {
+connection.onDefinition(async (params: DefinitionParams): Promise<Location[]> => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
-  if (!symbol) return [];
-  if (symbol.kind === "reference") {
-    return index
-      .definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])
-      .map((d) => Location.create(d.uri, d.nameRange));
+  if (symbol) {
+    if (symbol.kind === "reference") {
+      return index
+        .definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])
+        .map((d) => Location.create(d.uri, d.nameRange));
+    }
+    // On a definition token, jump to itself (lets editors confirm the symbol).
+    return [Location.create(symbol.def.uri, symbol.def.nameRange)];
   }
-  // On a definition token, jump to itself (lets editors confirm the symbol).
-  return [Location.create(symbol.def.uri, symbol.def.nameRange)];
+
+  // Off any structural symbol: jump from a `key`/{key} prose mention in
+  // brief/note to whatever it names, if the wrapped id resolves to a definition.
+  if (isMarkdown(params.textDocument.uri)) return [];
+  const text = await docText(params.textDocument.uri);
+  if (!text) return [];
+  for (const { id } of mentionsAt(text, params.position)) {
+    const defs = index.definitionsFor(id);
+    if (defs.length) return defs.map((d) => Location.create(d.uri, d.nameRange));
+  }
+  return [];
 });
 
-connection.onReferences((params: ReferenceParams): Location[] => {
+connection.onReferences(async (params: ReferenceParams): Promise<Location[]> => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
   if (!symbol) return [];
 
   const id = symbol.kind === "definition" ? symbol.def.id : symbol.ref.id;
   const defKind = symbol.kind === "definition" ? symbol.def.kind : undefined;
   const locations = index.referencesFor(id, defKind).map((r) => Location.create(r.uri, r.range));
+
+  for (const uri of index.documentUris()) {
+    if (isMarkdown(uri)) continue; // weaver refs already covered via referencesFor
+    const text = await docText(uri);
+    if (!text) continue;
+    for (const range of mentionRanges(text, id)) locations.push(Location.create(uri, range));
+  }
 
   if (params.context.includeDeclaration) {
     const kinds = symbol.kind === "definition" ? [symbol.def.kind] : RESOLUTION[symbol.ref.refKind];
@@ -285,11 +308,18 @@ async function docText(uri: string): Promise<string | undefined> {
 
 connection.languages.semanticTokens.on((params) => {
   const doc = documents.get(params.textDocument.uri);
-  // Only definition/2 and manifest docs get tokens; plain YAML (no kind) is left to YAML.
-  if (!doc || isMarkdown(doc.uri) || !parsedFor(doc).kind) return { data: [] };
+  if (!doc) return { data: [] };
+  if (isMarkdown(doc.uri)) {
+    const { refs } = index.localSymbols(doc.uri);
+    return buildMarkdownSemanticTokens(refs, new Set(index.unresolvedReferences(doc.uri)));
+  }
+  // Plain YAML (no kind) is left to the YAML extension.
+  if (!parsedFor(doc).kind) return { data: [] };
   const { defs, refs } = index.localSymbols(doc.uri);
   const unresolved = new Set(index.unresolvedReferences(doc.uri));
-  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved);
+  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved, (id) =>
+    index.hasDefinition(id),
+  );
 });
 
 connection.onHover((params: HoverParams): Hover | null => {

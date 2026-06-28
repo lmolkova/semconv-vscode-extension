@@ -3,9 +3,14 @@ import * as path from "path";
 import { describe, expect, it } from "vitest";
 
 import { RegistryIndex } from "../index";
+import { extractMarkdown } from "../markdown";
 import { extract } from "../model";
 import { parseSemconv } from "../parser";
-import { buildSemanticTokens, semanticTokensLegend } from "../semantic-tokens";
+import {
+  buildMarkdownSemanticTokens,
+  buildSemanticTokens,
+  semanticTokensLegend,
+} from "../semantic-tokens";
 
 const REG = path.join(process.cwd(), "test/fixtures/registry");
 
@@ -28,7 +33,9 @@ function tokensFor(target: string, docs: Record<string, string>): Token[] {
   const uri = `file://${target}`;
   const { defs, refs } = index.localSymbols(uri);
   const unresolved = new Set(index.unresolvedReferences(uri));
-  const encoded = buildSemanticTokens(parseSemconv(docs[target]), defs, refs, unresolved);
+  const encoded = buildSemanticTokens(parseSemconv(docs[target]), defs, refs, unresolved, (id) =>
+    index.hasDefinition(id),
+  );
   return decode(encoded.data);
 }
 
@@ -164,5 +171,61 @@ attributes:
   it("returns nothing for plain yaml", () => {
     const tokens = tokensFor("plain.yaml", { "plain.yaml": "foo: bar\n" });
     expect(tokens).toEqual([]);
+  });
+
+  it("highlights resolved prose mentions in brief/note, leaving unknown ones as text", () => {
+    const reg = `file_format: definition/2
+attributes:
+  - key: a.b
+    type: string
+    stability: development
+    brief: See \`a.b\` and {a.b}; not \`a.unknown\` nor \`a.b.c\`.
+`;
+    const tokens = tokensFor("reg.yaml", { "reg.yaml": reg });
+    // `a.b` and {a.b} resolve to the attribute → references (nth 0 is the `key:` def).
+    expect(at(reg, tokens, "a.b", 1)).toMatchObject({ type: "semconvReference", mods: [] });
+    expect(at(reg, tokens, "a.b", 2)).toMatchObject({ type: "semconvReference", mods: [] });
+    // Exactly those two: unknown ids (`a.unknown`, `a.b.c`) stay plain prose, unflagged.
+    const refs = tokens.filter((t) => t.type === "semconvReference");
+    expect(refs).toHaveLength(2);
+    expect(refs.every((t) => t.length === 3)).toBe(true);
+    // The surrounding words are still plain text.
+    expect(at(reg, tokens, "See")).toMatchObject({ type: "semconvText" });
+  });
+});
+
+describe("buildMarkdownSemanticTokens", () => {
+  function mdTokens(text: string, docs: Record<string, string>): Token[] {
+    const index = new RegistryIndex();
+    for (const [name, doc] of Object.entries(docs)) {
+      const { isSemconv, defs, refs, hasImports } = extract(doc, `file://${name}`);
+      if (isSemconv) index.setDocument(`file://${name}`, defs, refs, hasImports);
+    }
+    const uri = "file://doc.md";
+    const refs = extractMarkdown(text, uri);
+    index.setDocument(uri, [], refs, false);
+    return decode(buildMarkdownSemanticTokens(refs, new Set(index.unresolvedReferences(uri))).data);
+  }
+
+  const md = `<!-- weaver registry attributes --filter '.key == "a.b"' -->
+<!-- endweaver -->
+<!-- weaver registry attributes --filter '.key == "a.missing"' -->
+<!-- endweaver -->
+`;
+
+  it("highlights weaver query ids as references, flagging unresolved ones", () => {
+    const reg = `file_format: definition/2
+attributes:
+  - key: a.b
+    type: string
+    stability: development
+    brief: x
+`;
+    const tokens = mdTokens(md, { "reg.yaml": reg });
+    expect(at(md, tokens, "a.b")).toMatchObject({ type: "semconvReference", mods: [] });
+    expect(at(md, tokens, "a.missing")).toMatchObject({
+      type: "semconvReference",
+      mods: ["unresolved"],
+    });
   });
 });

@@ -75,7 +75,7 @@ Release. Users can also install manually via `code --install-extension <file>.vs
         snippets_ below).
   - [ ] Move the deprecated (by auto-rename) stub into a `deprecated.yaml` file (create it if it
         doesn't exist) instead of leaving it inline next to the renamed entry.
-- [ ] **Find References — include prose mentions** — surface backtick- or
+- [x] **Find References — include prose mentions** — surface backtick- or
       `{}`-wrapped mentions of an id (`` `key` ``, `{key}`) in free-form `brief` /
       `note` text as references, alongside the structural `ref` / `ref_group` /
       `entity_associations` ones. (Reuse the mention scan from rename.)

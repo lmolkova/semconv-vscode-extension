@@ -1,6 +1,7 @@
 import { Range, SemanticTokens, SemanticTokensBuilder } from "vscode-languageserver";
 
 import { eachKeyValueScalar } from "./key-path";
+import { FREE_FORM_KEYS, wrappedMentions } from "./mentions";
 import { ParsedSemconv, tokenRange } from "./parser";
 import { definitionResolver, manifestResolver } from "./schema-resolver";
 import { Definition, DefKind, Reference, RefKind } from "./types";
@@ -48,8 +49,6 @@ const DEF_TOKEN: Record<DefKind, TokenType> = {
   span_refinement: DEFINITION,
 };
 
-// The md_* kinds never reach here (markdown gets no semantic tokens); listed only
-// to keep this map exhaustive over RefKind.
 const REF_TOKEN: Record<RefKind, TokenType> = {
   attribute_ref: REFERENCE,
   group_ref: REFERENCE,
@@ -74,6 +73,7 @@ export function buildSemanticTokens(
   defs: Definition[],
   refs: Reference[],
   unresolved: Set<Reference>,
+  isDefined: (id: string) => boolean,
 ): SemanticTokens {
   const tokens: { line: number; char: number; length: number; type: number; mods: number }[] = [];
 
@@ -104,6 +104,26 @@ export function buildSemanticTokens(
       if (typeof value.value !== "string") return;
       const range = tokenRange(value, parsed.offsets);
       if (claimed.has(`${range.start.line}:${range.start.character}`)) return;
+
+      // Prose mentions: highlight a `key`/{key} that resolves as a reference, the
+      // surrounding prose as plain text. Unresolved mentions stay plain (no diagnostic).
+      if (FREE_FORM_KEYS.has(key) && value.range) {
+        const [from, to] = value.range;
+        const text = (a: number, b: number) => add(parsed.offsets.range(a, b), "semconvText", 0);
+        const hits = wrappedMentions(parsed.text.slice(from, to))
+          .filter((m) => isDefined(m.id))
+          .sort((a, b) => a.start - b.start);
+        let cursor = from;
+        for (const m of hits) {
+          if (from + m.start < cursor) continue; // overlapping (nested) mention already emitted
+          if (from + m.start > cursor) text(cursor, from + m.start);
+          add(parsed.offsets.range(from + m.start, from + m.end), REFERENCE, 0);
+          cursor = from + m.end;
+        }
+        if (cursor < to) text(cursor, to);
+        return;
+      }
+
       const info = resolver.describeKeyPath(steps);
       let type: TokenType = "semconvText";
       if (info?.enumValues?.includes(value.value)) type = "semconvEnumValue";
@@ -117,5 +137,33 @@ export function buildSemanticTokens(
   tokens.sort((a, b) => a.line - b.line || a.char - b.char);
   const builder = new SemanticTokensBuilder();
   for (const t of tokens) builder.push(t.line, t.char, t.length, t.type, t.mods);
+  return builder.build();
+}
+
+/**
+ * Tokens for a markdown doc: the semconv ids inside `<!-- weaver ... -->` snippet
+ * queries, highlighted as references (single-line, like the YAML refs they mirror).
+ */
+export function buildMarkdownSemanticTokens(
+  refs: Reference[],
+  unresolved: Set<Reference>,
+): SemanticTokens {
+  const builder = new SemanticTokensBuilder();
+  const sorted = [...refs].sort(
+    (a, b) =>
+      a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character,
+  );
+  for (const ref of sorted) {
+    const { start, end } = ref.range;
+    if (start.line !== end.line) continue;
+    const mods = unresolved.has(ref) ? UNRESOLVED : 0;
+    builder.push(
+      start.line,
+      start.character,
+      end.character - start.character,
+      TYPE_INDEX[REF_TOKEN[ref.refKind]],
+      mods,
+    );
+  }
   return builder.build();
 }

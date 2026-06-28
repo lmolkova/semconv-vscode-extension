@@ -48,9 +48,13 @@ export class RegistryIndex {
     return Array.from(this.docs.keys());
   }
 
-  definitionsFor(id: string, kinds: readonly DefKind[]): Definition[] {
+  definitionsFor(id: string, kinds?: readonly DefKind[]): Definition[] {
     const all = this.defIndex.get(id) ?? [];
-    return all.filter((d) => kinds.includes(d.kind));
+    return kinds ? all.filter((d) => kinds.includes(d.kind)) : all;
+  }
+
+  hasDefinition(id: string): boolean {
+    return this.defIndex.has(id);
   }
 
   allDefinitions(): Definition[] {

@@ -8,7 +8,7 @@ events:
       request parameters and token usage.
     note: >
       This event is opt-in and can be used to record input and output details
-      independently from the inference span.
+      independently from the `gen_ai.inference.client`.
     attributes:
       - ref: gen_ai.operation.name
         requirement_level: required

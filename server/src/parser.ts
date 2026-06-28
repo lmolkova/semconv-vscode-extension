@@ -57,6 +57,7 @@ export interface ParsedSemconv {
   doc: Document.Parsed;
   root: YAMLMap | undefined;
   offsets: OffsetConverter;
+  text: string;
 }
 
 /** A definition file declares `file_format`; a manifest carries `schema_url` and no format. */
@@ -74,7 +75,7 @@ function classify(root: YAMLMap | undefined): DocKind | undefined {
 export function parseSemconv(text: string): ParsedSemconv {
   const doc = parseDocument(text, { keepSourceTokens: false });
   const root = isMap(doc.contents) ? doc.contents : undefined;
-  return { kind: classify(root), doc, root, offsets: new OffsetConverter(text) };
+  return { kind: classify(root), doc, root, offsets: new OffsetConverter(text), text };
 }
 
 export function looksLikeSemconv(text: string): boolean {
