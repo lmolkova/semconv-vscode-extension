@@ -4,6 +4,8 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+## 0.3.0
+
 - Backtick- or `{}`-wrapped mentions of an id (`` `key` ``, `{key}`) in
   free-form `brief` / `note` text are now first-class: Go to Definition jumps
   from such a mention to what it names, Find All References lists them alongside
