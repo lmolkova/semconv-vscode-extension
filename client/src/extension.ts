@@ -22,13 +22,16 @@ export function activate(context: ExtensionContext): void {
   };
 
   const clientOptions: LanguageClientOptions = {
-    // Attach to all YAML; the server detects definition/2 by content and filters.
+    // Attach to all YAML and Markdown; the server detects definition/2 YAML and
+    // weaver snippets by content and filters out everything else.
     documentSelector: [
       { scheme: "file", language: "yaml" },
       { scheme: "file", pattern: "**/*.{yaml,yml}" },
+      { scheme: "file", language: "markdown" },
+      { scheme: "file", pattern: "**/*.md" },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.{yaml,yml}"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.{yaml,yml,md}"),
     },
   };
 
