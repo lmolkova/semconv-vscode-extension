@@ -21,6 +21,7 @@ async function main(): Promise<void> {
       extensionDevelopmentPath,
       extensionTestsPath,
       launchArgs: [`--folder-uri=${pathToFileURL(workspace).href}`, "--disable-workspace-trust"],
+    });
   } catch (err) {
     console.error("Integration tests failed:", err);
     process.exit(1);
