@@ -107,8 +107,10 @@ async function scanWorkspace(): Promise<void> {
         const uri = URI.file(file).toString();
         if (documents.get(uri)) continue; // open docs are indexed from their buffer
         if (isMarkdown(uri)) {
-          if (looksLikeWeaverDoc(text))
-            index.setDocument(uri, [], extractMarkdown(text, uri), false);
+          if (looksLikeWeaverDoc(text)) {
+            const refs = extractMarkdown(text, uri);
+            if (refs.length) index.setDocument(uri, [], refs, false);
+          }
           continue;
         }
         if (!looksLikeSemconv(text)) continue;
