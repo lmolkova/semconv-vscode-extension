@@ -114,8 +114,8 @@ describe("markdown – index integration", () => {
   function setup(): RegistryIndex {
     const index = new RegistryIndex();
     const yaml = extract(REGISTRY, REG_URI);
-    index.setDocument(REG_URI, yaml.defs, yaml.refs, yaml.hasImports);
-    index.setDocument(URI, [], extractMarkdown(DOC, URI), false);
+    index.setDocument(REG_URI, yaml.defs, yaml.refs, yaml.proseRefs, yaml.hasImports);
+    index.setDocument(URI, [], extractMarkdown(DOC, URI), [], false);
     return index;
   }
 

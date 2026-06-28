@@ -4,13 +4,7 @@ import { Position, Range, TextEdit } from "vscode-languageserver";
 import { RegistryIndex } from "../index";
 import { extract } from "../model";
 import { OffsetConverter } from "../parser";
-import {
-  buildRenameEdits,
-  mentionEdits,
-  mentionRanges,
-  mentionsAt,
-  prepareRename,
-} from "../rename";
+import { buildRenameEdits, prepareRename } from "../rename";
 import { DefKind } from "../types";
 
 const ATTRS = `file_format: definition/2
@@ -66,8 +60,8 @@ function setup(): { index: RegistryIndex; texts: Map<string, string> } {
     [SIGNALS_URI, SIGNALS],
   ]);
   for (const [uri, text] of texts) {
-    const { defs, refs, hasImports } = extract(text, uri);
-    index.setDocument(uri, defs, refs, hasImports);
+    const { defs, refs, proseRefs, hasImports } = extract(text, uri);
+    index.setDocument(uri, defs, refs, proseRefs, hasImports);
   }
   return { index, texts };
 }
@@ -179,78 +173,6 @@ describe("rename – stub policy", () => {
     expect(signals).toContain("  - id: attributes.gen_ai.exported");
     expect(signals).toContain("      renamed_to: attributes.gen_ai.exported");
     expect(signals).toContain("  - id: attributes.gen_ai.public");
-  });
-});
-
-describe("mentionEdits", () => {
-  const doc = `file_format: definition/2
-attributes:
-  - key: a.b
-    brief: Uses \`a.b\` and {a.b}; ignores \`a.b.c\` and plain a.b.
-    note: nested \`{a.b}\` template.
-    examples: \`a.b\`
-`;
-
-  it("rewrites wrapped mentions only inside brief/note, leaving similar ids alone", () => {
-    const out = applyEdits(doc, mentionEdits(doc, "a.b", "a.c"));
-    expect(out).toContain("brief: Uses `a.c` and {a.c}; ignores `a.b.c` and plain a.b.");
-    expect(out).toContain("note: nested `{a.c}` template.");
-    // `examples` is not a free-form prose prop — left untouched.
-    expect(out).toContain("examples: `a.b`");
-  });
-});
-
-describe("mentionRanges", () => {
-  const doc = `file_format: definition/2
-attributes:
-  - key: a.b
-    brief: Uses \`a.b\` and {a.b}; ignores \`a.b.c\` and plain a.b.
-    note: nested \`{a.b}\` template.
-    examples: \`a.b\`
-`;
-
-  it("finds wrapped mentions only inside brief/note, each spanning the id", () => {
-    const off = new OffsetConverter(doc);
-    const got = mentionRanges(doc, "a.b").map((r) =>
-      doc.slice(off.offset(r.start), off.offset(r.end)),
-    );
-    // Two in brief (backtick + brace), one in note; `a.b.c` and bare `a.b` excluded, examples skipped.
-    expect(got).toEqual(["a.b", "a.b", "a.b"]);
-  });
-
-  it("returns nothing when the id is absent", () => {
-    expect(mentionRanges(doc, "x.y")).toEqual([]);
-  });
-});
-
-describe("mentionsAt", () => {
-  const doc = `file_format: definition/2
-attributes:
-  - key: a.b
-    brief: Uses \`a.b\` and {a.b.c}; plain a.b too.
-    note: nested \`{a.b}\` template.
-`;
-  const off = new OffsetConverter(doc);
-  // A position on the middle character of `token`'s first occurrence.
-  const at = (token: string): Position =>
-    off.position(doc.indexOf(token) + Math.floor(token.length / 2));
-
-  it("resolves a backtick mention to the wrapped id", () => {
-    expect(mentionsAt(doc, at("`a.b`")).map((m) => m.id)).toEqual(["a.b"]);
-  });
-
-  it("resolves a brace mention to the wrapped id", () => {
-    expect(mentionsAt(doc, at("{a.b.c}")).map((m) => m.id)).toEqual(["a.b.c"]);
-  });
-
-  it("offers both candidates for a nested `{id}` so the caller can pick", () => {
-    expect(mentionsAt(doc, at("{a.b}")).map((m) => m.id)).toEqual(["{a.b}", "a.b"]);
-  });
-
-  it("ignores unwrapped text and positions outside brief/note", () => {
-    expect(mentionsAt(doc, at("plain a.b"))).toEqual([]);
-    // The structural `key: a.b` is not a prose mention.
-    expect(mentionsAt(doc, off.position(doc.indexOf("a.b"))).map((m) => m.id)).toEqual([]);
   });
 });
 

@@ -7,6 +7,7 @@ import { Definition, DefKind, Reference, RESOLUTION, SymbolAt } from "./types";
 interface DocEntry {
   defs: Definition[];
   refs: Reference[];
+  proseRefs: Reference[];
   hasImports: boolean;
   symbols?: DocumentSymbol[];
 }
@@ -15,16 +16,24 @@ export class RegistryIndex {
   private readonly docs = new Map<string, DocEntry>();
   private readonly defIndex = new Map<string, Definition[]>();
   private readonly refIndex = new Map<string, Reference[]>();
+  private readonly proseRefIndex = new Map<string, Reference[]>();
   private importingDocs = 0;
   private allDefsCache: Definition[] | undefined;
   private searchCache: { def: Definition; lowerId: string }[] | undefined;
 
-  setDocument(uri: string, defs: Definition[], refs: Reference[], hasImports: boolean): void {
+  setDocument(
+    uri: string,
+    defs: Definition[],
+    refs: Reference[],
+    proseRefs: Reference[],
+    hasImports: boolean,
+  ): void {
     this.removeDocument(uri);
-    this.docs.set(uri, { defs, refs, hasImports });
+    this.docs.set(uri, { defs, refs, proseRefs, hasImports });
     if (hasImports) this.importingDocs++;
     for (const def of defs) push(this.defIndex, def.id, def);
     for (const ref of refs) push(this.refIndex, ref.id, ref);
+    for (const ref of proseRefs) push(this.proseRefIndex, ref.id, ref);
     this.allDefsCache = undefined;
     this.searchCache = undefined;
   }
@@ -35,6 +44,7 @@ export class RegistryIndex {
     if (entry.hasImports) this.importingDocs--;
     for (const def of entry.defs) remove(this.defIndex, def.id, (d) => d.uri === uri);
     for (const ref of entry.refs) remove(this.refIndex, ref.id, (r) => r.uri === uri);
+    for (const ref of entry.proseRefs) remove(this.proseRefIndex, ref.id, (r) => r.uri === uri);
     this.docs.delete(uri);
     this.allDefsCache = undefined;
     this.searchCache = undefined;
@@ -48,13 +58,16 @@ export class RegistryIndex {
     return Array.from(this.docs.keys());
   }
 
-  definitionsFor(id: string, kinds?: readonly DefKind[]): Definition[] {
+  definitionsFor(id: string, kinds: readonly DefKind[]): Definition[] {
     const all = this.defIndex.get(id) ?? [];
-    return kinds ? all.filter((d) => kinds.includes(d.kind)) : all;
+    return all.filter((d) => kinds.includes(d.kind));
   }
 
-  hasDefinition(id: string): boolean {
-    return this.defIndex.has(id);
+  /** Prose mentions in `uri` that resolve to a real definition (the rest are just prose). */
+  resolvedProseRefs(uri: string): Reference[] {
+    const entry = this.docs.get(uri);
+    if (!entry) return [];
+    return entry.proseRefs.filter((r) => this.defIndex.has(r.id));
   }
 
   allDefinitions(): Definition[] {
@@ -83,7 +96,7 @@ export class RegistryIndex {
   }
 
   referencesFor(id: string, defKind?: DefKind): Reference[] {
-    const all = this.refIndex.get(id) ?? [];
+    const all = [...(this.refIndex.get(id) ?? []), ...(this.proseRefIndex.get(id) ?? [])];
     if (!defKind) return all;
     return all.filter((r) => RESOLUTION[r.refKind].includes(defKind));
   }
@@ -96,6 +109,13 @@ export class RegistryIndex {
     }
     for (const ref of entry.refs) {
       if (positionInRange(ref.range, position)) return { kind: "reference", ref };
+    }
+    // A prose mention is a symbol only where it resolves; unresolved wrapped text
+    // stays invisible to navigation/hover.
+    for (const ref of entry.proseRefs) {
+      if (positionInRange(ref.range, position) && this.defIndex.has(ref.id)) {
+        return { kind: "reference", ref };
+      }
     }
     return undefined;
   }

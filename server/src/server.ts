@@ -33,7 +33,7 @@ import { manifestDiagnostics } from "./manifest";
 import { extractMarkdown, looksLikeWeaverDoc } from "./markdown";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
-import { buildRenameEdits, mentionRanges, mentionsAt, prepareRename } from "./rename";
+import { buildRenameEdits, prepareRename } from "./rename";
 import { definitionResolver, KeyDoc, manifestResolver } from "./schema-resolver";
 import { schemaDiagnostics } from "./schema-validate";
 import {
@@ -113,13 +113,13 @@ async function scanWorkspace(): Promise<void> {
         if (isMarkdown(uri)) {
           if (looksLikeWeaverDoc(text)) {
             const refs = extractMarkdown(text, uri);
-            if (refs.length) index.setDocument(uri, [], refs, false);
+            if (refs.length) index.setDocument(uri, [], refs, [], false);
           }
           continue;
         }
         if (!looksLikeSemconv(text)) continue;
-        const { isSemconv, defs, refs, hasImports } = extract(text, uri);
-        if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
+        const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
+        if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
       } catch {
         // ignore unreadable / unparseable files
       }
@@ -130,13 +130,13 @@ async function scanWorkspace(): Promise<void> {
 function indexDocument(doc: TextDocument): void {
   if (isMarkdown(doc.uri)) {
     const refs = extractMarkdown(doc.getText(), doc.uri);
-    if (refs.length) index.setDocument(doc.uri, [], refs, false);
+    if (refs.length) index.setDocument(doc.uri, [], refs, [], false);
     else index.removeDocument(doc.uri);
     return;
   }
-  const { isSemconv, defs, refs, hasImports } = extract(doc.getText(), doc.uri);
+  const { isSemconv, defs, refs, proseRefs, hasImports } = extract(doc.getText(), doc.uri);
   if (isSemconv) {
-    index.setDocument(doc.uri, defs, refs, hasImports);
+    index.setDocument(doc.uri, defs, refs, proseRefs, hasImports);
   } else {
     index.removeDocument(doc.uri);
   }
@@ -171,12 +171,12 @@ async function scanFile(uri: string): Promise<void> {
     const text = await fs.readFile(URI.parse(uri).fsPath, "utf8");
     if (isMarkdown(uri)) {
       const refs = extractMarkdown(text, uri);
-      if (refs.length) index.setDocument(uri, [], refs, false);
+      if (refs.length) index.setDocument(uri, [], refs, [], false);
       else index.removeDocument(uri);
       return;
     }
-    const { isSemconv, defs, refs, hasImports } = extract(text, uri);
-    if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
+    const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
+    if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
     else index.removeDocument(uri);
   } catch {
     index.removeDocument(uri);
@@ -230,44 +230,27 @@ function validate(doc: TextDocument): void {
   void connection.sendDiagnostics({ uri: doc.uri, diagnostics });
 }
 
-connection.onDefinition(async (params: DefinitionParams): Promise<Location[]> => {
+connection.onDefinition((params: DefinitionParams): Location[] => {
+  // A resolved `key`/{key} prose mention is a reference symbol too (see symbolAt).
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
-  if (symbol) {
-    if (symbol.kind === "reference") {
-      return index
-        .definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])
-        .map((d) => Location.create(d.uri, d.nameRange));
-    }
-    // On a definition token, jump to itself (lets editors confirm the symbol).
-    return [Location.create(symbol.def.uri, symbol.def.nameRange)];
+  if (!symbol) return [];
+  if (symbol.kind === "reference") {
+    return index
+      .definitionsFor(symbol.ref.id, RESOLUTION[symbol.ref.refKind])
+      .map((d) => Location.create(d.uri, d.nameRange));
   }
-
-  // Off any structural symbol: jump from a `key`/{key} prose mention in
-  // brief/note to whatever it names, if the wrapped id resolves to a definition.
-  if (isMarkdown(params.textDocument.uri)) return [];
-  const text = await docText(params.textDocument.uri);
-  if (!text) return [];
-  for (const { id } of mentionsAt(text, params.position)) {
-    const defs = index.definitionsFor(id);
-    if (defs.length) return defs.map((d) => Location.create(d.uri, d.nameRange));
-  }
-  return [];
+  // On a definition token, jump to itself (lets editors confirm the symbol).
+  return [Location.create(symbol.def.uri, symbol.def.nameRange)];
 });
 
-connection.onReferences(async (params: ReferenceParams): Promise<Location[]> => {
+connection.onReferences((params: ReferenceParams): Location[] => {
   const symbol = index.symbolAt(params.textDocument.uri, params.position);
   if (!symbol) return [];
 
   const id = symbol.kind === "definition" ? symbol.def.id : symbol.ref.id;
   const defKind = symbol.kind === "definition" ? symbol.def.kind : undefined;
+  // referencesFor folds in prose mentions, so this covers brief/note text too.
   const locations = index.referencesFor(id, defKind).map((r) => Location.create(r.uri, r.range));
-
-  for (const uri of index.documentUris()) {
-    if (isMarkdown(uri)) continue; // weaver refs already covered via referencesFor
-    const text = await docText(uri);
-    if (!text) continue;
-    for (const range of mentionRanges(text, id)) locations.push(Location.create(uri, range));
-  }
 
   if (params.context.includeDeclaration) {
     const kinds = symbol.kind === "definition" ? [symbol.def.kind] : RESOLUTION[symbol.ref.refKind];
@@ -317,9 +300,8 @@ connection.languages.semanticTokens.on((params) => {
   if (!parsedFor(doc).kind) return { data: [] };
   const { defs, refs } = index.localSymbols(doc.uri);
   const unresolved = new Set(index.unresolvedReferences(doc.uri));
-  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved, (id) =>
-    index.hasDefinition(id),
-  );
+  const proseRefs = index.resolvedProseRefs(doc.uri);
+  return buildSemanticTokens(parsedFor(doc), defs, refs, unresolved, proseRefs);
 });
 
 connection.onHover((params: HoverParams): Hover | null => {

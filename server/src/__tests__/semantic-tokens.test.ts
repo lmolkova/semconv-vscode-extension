@@ -27,14 +27,19 @@ function tokensFor(target: string, docs: Record<string, string>): Token[] {
   const index = new RegistryIndex();
   for (const [name, text] of Object.entries(docs)) {
     const uri = `file://${name}`;
-    const { isSemconv, defs, refs, hasImports } = extract(text, uri);
-    if (isSemconv) index.setDocument(uri, defs, refs, hasImports);
+    const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
+    if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
   }
   const uri = `file://${target}`;
   const { defs, refs } = index.localSymbols(uri);
   const unresolved = new Set(index.unresolvedReferences(uri));
-  const encoded = buildSemanticTokens(parseSemconv(docs[target]), defs, refs, unresolved, (id) =>
-    index.hasDefinition(id),
+  const proseRefs = index.resolvedProseRefs(uri);
+  const encoded = buildSemanticTokens(
+    parseSemconv(docs[target]),
+    defs,
+    refs,
+    unresolved,
+    proseRefs,
   );
   return decode(encoded.data);
 }
@@ -198,12 +203,12 @@ describe("buildMarkdownSemanticTokens", () => {
   function mdTokens(text: string, docs: Record<string, string>): Token[] {
     const index = new RegistryIndex();
     for (const [name, doc] of Object.entries(docs)) {
-      const { isSemconv, defs, refs, hasImports } = extract(doc, `file://${name}`);
-      if (isSemconv) index.setDocument(`file://${name}`, defs, refs, hasImports);
+      const { isSemconv, defs, refs, proseRefs, hasImports } = extract(doc, `file://${name}`);
+      if (isSemconv) index.setDocument(`file://${name}`, defs, refs, proseRefs, hasImports);
     }
     const uri = "file://doc.md";
     const refs = extractMarkdown(text, uri);
-    index.setDocument(uri, [], refs, false);
+    index.setDocument(uri, [], refs, [], false);
     return decode(buildMarkdownSemanticTokens(refs, new Set(index.unresolvedReferences(uri))).data);
   }
 

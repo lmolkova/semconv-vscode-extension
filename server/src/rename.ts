@@ -1,9 +1,7 @@
 import { Position, Range, TextEdit, WorkspaceEdit } from "vscode-languageserver";
-import { isScalar, visit } from "yaml";
 
 import { RegistryIndex } from "./index";
-import { FREE_FORM_KEYS, wrappedMentions } from "./mentions";
-import { OffsetConverter, parseSemconv } from "./parser";
+import { OffsetConverter } from "./parser";
 import { Definition, DefKind, RESOLUTION } from "./types";
 
 // Renaming a definition keeps the old id as a `deprecated: { reason: renamed,
@@ -93,15 +91,9 @@ export async function buildRenameEdits(
     }
   }
 
+  // referencesFor folds in prose mentions, so `brief`/`note` text is rewritten too.
   for (const ref of index.referencesFor(oldId, kind)) {
     add(ref.uri, TextEdit.replace(ref.range, newName));
-  }
-
-  for (const u of index.documentUris()) {
-    if (u.endsWith(".md")) continue; // weaver refs already covered via referencesFor
-    const text = await getText(u);
-    if (!text) continue;
-    for (const edit of mentionEdits(text, oldId, newName)) add(u, edit);
   }
 
   const changes: Record<string, TextEdit[]> = {};
@@ -129,65 +121,4 @@ function deprecatedStub(text: string, def: Definition, newName: string): TextEdi
     `${indent}  note: ${JSON.stringify(`Renamed to \`${newName}\`.`)}`;
 
   return TextEdit.insert(off.position(end), `\n${block}\n${deprecated}`);
-}
-/** Rewrites backtick- or brace-wrapped mentions of `oldId` in `brief`/`note` text. */
-export function mentionEdits(text: string, oldId: string, newId: string): TextEdit[] {
-  return mentionRanges(text, oldId).map((range) => TextEdit.replace(range, newId));
-}
-
-export interface Mention {
-  id: string;
-  range: Range;
-}
-
-/**
- * Backtick- or brace-wrapped mentions in `brief`/`note` text covering `position`.
- * Usually one; a nested `` `{id}` `` yields the brace and backtick candidates so
- * the caller can pick whichever resolves to a definition.
- */
-export function mentionsAt(text: string, position: Position): Mention[] {
-  const { doc, offsets } = parseSemconv(text);
-  const target = offsets.offset(position);
-  const hits: Mention[] = [];
-  forEachFreeFormValue(doc, text, (from, src) => {
-    for (const m of wrappedMentions(src)) {
-      const idStart = from + m.start;
-      const idEnd = from + m.end;
-      if (target >= idStart && target <= idEnd) {
-        hits.push({ id: m.id, range: offsets.range(idStart, idEnd) });
-      }
-    }
-  });
-  return hits;
-}
-
-/** Ranges of backtick- or brace-wrapped mentions of `id` (the id itself) in `brief`/`note` text. */
-export function mentionRanges(text: string, id: string): Range[] {
-  // Wrapped mentions all contain the id verbatim, so skip the parse when it's absent.
-  if (!text.includes(id)) return [];
-  const { doc, offsets } = parseSemconv(text);
-  const ranges: Range[] = [];
-  forEachFreeFormValue(doc, text, (from, src) => {
-    for (const m of wrappedMentions(src)) {
-      if (m.id === id) ranges.push(offsets.range(from + m.start, from + m.end));
-    }
-  });
-  return ranges;
-}
-
-/** Invokes `cb` with each `brief`/`note` scalar value's start offset and source slice. */
-function forEachFreeFormValue(
-  doc: ReturnType<typeof parseSemconv>["doc"],
-  text: string,
-  cb: (from: number, src: string) => void,
-): void {
-  visit(doc, {
-    Pair(_, pair) {
-      const key = isScalar(pair.key) ? pair.key.value : pair.key;
-      if (typeof key !== "string" || !FREE_FORM_KEYS.has(key)) return;
-      const value = pair.value;
-      if (!isScalar(value) || typeof value.value !== "string" || !value.range) return;
-      cb(value.range[0], text.slice(value.range[0], value.range[1]));
-    },
-  });
 }

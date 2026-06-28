@@ -1,7 +1,6 @@
 import { Range, SemanticTokens, SemanticTokensBuilder } from "vscode-languageserver";
 
 import { eachKeyValueScalar } from "./key-path";
-import { FREE_FORM_KEYS, wrappedMentions } from "./mentions";
 import { ParsedSemconv, tokenRange } from "./parser";
 import { definitionResolver, manifestResolver } from "./schema-resolver";
 import { Definition, DefKind, Reference, RefKind } from "./types";
@@ -57,6 +56,7 @@ const REF_TOKEN: Record<RefKind, TokenType> = {
   event_refinement_ref: REFERENCE,
   metric_refinement_ref: REFERENCE,
   span_refinement_ref: REFERENCE,
+  prose_ref: REFERENCE,
   md_attribute_ref: REFERENCE,
   md_event_ref: REFERENCE,
   md_metric_ref: REFERENCE,
@@ -73,7 +73,7 @@ export function buildSemanticTokens(
   defs: Definition[],
   refs: Reference[],
   unresolved: Set<Reference>,
-  isDefined: (id: string) => boolean,
+  proseRefs: Reference[],
 ): SemanticTokens {
   const tokens: { line: number; char: number; length: number; type: number; mods: number }[] = [];
 
@@ -94,6 +94,16 @@ export function buildSemanticTokens(
   for (const ref of refs) {
     add(ref.range, REF_TOKEN[ref.refKind], unresolved.has(ref) ? UNRESOLVED : 0);
   }
+  // Resolved prose mentions render as references; the surrounding prose stays plain
+  // text via the split below.
+  for (const ref of proseRefs) add(ref.range, REFERENCE, 0);
+
+  // The brief/note ranges carrying a prose mention, so the plain-text pass can emit
+  // the prose around the (already-tokenized) mention without overlapping it.
+  const proseSpans = proseRefs.map((r) => ({
+    start: parsed.offsets.offset(r.range.start),
+    end: parsed.offsets.offset(r.range.end),
+  }));
 
   // Positions already claimed by a def/ref id; the plain-text pass must not double-token them.
   const claimed = new Set(tokens.map((t) => `${t.line}:${t.char}`));
@@ -105,23 +115,23 @@ export function buildSemanticTokens(
       const range = tokenRange(value, parsed.offsets);
       if (claimed.has(`${range.start.line}:${range.start.character}`)) return;
 
-      // Prose mentions: highlight a `key`/{key} that resolves as a reference, the
-      // surrounding prose as plain text. Unresolved mentions stay plain (no diagnostic).
-      if (FREE_FORM_KEYS.has(key) && value.range) {
+      // A brief/note value carrying prose mentions: emit the prose between/around the
+      // mention tokens as plain text, leaving the mentions as the references above.
+      if (value.range) {
         const [from, to] = value.range;
-        const text = (a: number, b: number) => add(parsed.offsets.range(a, b), "semconvText", 0);
-        const hits = wrappedMentions(parsed.text.slice(from, to))
-          .filter((m) => isDefined(m.id))
+        const spans = proseSpans
+          .filter((s) => s.start >= from && s.end <= to)
           .sort((a, b) => a.start - b.start);
-        let cursor = from;
-        for (const m of hits) {
-          if (from + m.start < cursor) continue; // overlapping (nested) mention already emitted
-          if (from + m.start > cursor) text(cursor, from + m.start);
-          add(parsed.offsets.range(from + m.start, from + m.end), REFERENCE, 0);
-          cursor = from + m.end;
+        if (spans.length) {
+          let cursor = from;
+          for (const s of spans) {
+            if (s.start < cursor) continue; // overlapping (nested) mention
+            if (s.start > cursor) add(parsed.offsets.range(cursor, s.start), "semconvText", 0);
+            cursor = s.end;
+          }
+          if (cursor < to) add(parsed.offsets.range(cursor, to), "semconvText", 0);
+          return;
         }
-        if (cursor < to) text(cursor, to);
-        return;
       }
 
       const info = resolver.describeKeyPath(steps);
