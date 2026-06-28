@@ -20,11 +20,7 @@ async function main(): Promise<void> {
       version: "1.96.4",
       extensionDevelopmentPath,
       extensionTestsPath,
-      // Pass the workspace as a flag, not a bare positional: runTests prepends
-      // launchArgs, so a leading path arg gets read as the Electron app to run
-      // ("Cannot find module .../test/fixtures") instead of a folder to open.
-      launchArgs: [`--folder-uri=${pathToFileURL(workspace).href}`],
-    });
+      launchArgs: [`--folder-uri=${pathToFileURL(workspace).href}`, "--disable-workspace-trust"],
   } catch (err) {
     console.error("Integration tests failed:", err);
     process.exit(1);
