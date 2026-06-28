@@ -4,4 +4,4 @@
 // renovate.json.
 
 // renovate: datasource=github-releases depName=open-telemetry/weaver
-export const WEAVER_VERSION = "v0.24.0";
+export const WEAVER_VERSION = "v0.24.2";
