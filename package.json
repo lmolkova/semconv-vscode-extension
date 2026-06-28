@@ -21,7 +21,7 @@
     "weaver",
     "yaml"
   ],
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "vscode": "^1.96.0",
     "node": ">=22.18.0"
