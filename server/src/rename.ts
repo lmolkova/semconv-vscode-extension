@@ -97,6 +97,7 @@ export async function buildRenameEdits(
   }
 
   for (const u of index.documentUris()) {
+    if (u.endsWith(".md")) continue; // weaver refs already covered via referencesFor
     const text = await getText(u);
     if (!text) continue;
     for (const edit of mentionEdits(text, oldId, newName)) add(u, edit);
