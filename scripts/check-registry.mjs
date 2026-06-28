@@ -28,7 +28,6 @@ const args = [
   "-r",
   "/registry",
   "--v2",
-  "true",
 ];
 
 try {
