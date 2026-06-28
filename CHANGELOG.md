@@ -8,7 +8,9 @@ User-facing changes to the extension. Newest first.
   free-form `brief` / `note` text are now first-class: Go to Definition jumps
   from such a mention to what it names, Find All References lists them alongside
   the structural `ref` / `ref_group` references, and a mention that resolves is
-  syntax-highlighted as a reference.
+  syntax-highlighted as a reference. A mention that doesn't resolve to any
+  definition is now flagged as an unresolved reference (suppressed, like other
+  refs, when the registry uses `imports`).
 - Markdown support for weaver snippets: the ids inside `<!-- weaver ... -->`
   snippet queries (event/metric names, span/entity types, refinement ids, and
   attribute keys) now support Go to Definition and Find All References into the

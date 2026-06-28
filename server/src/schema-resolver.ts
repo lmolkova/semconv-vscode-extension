@@ -1,4 +1,5 @@
 import type { PathStep } from "./key-path";
+import { scalarText } from "./parser";
 import manifestSchema from "./schema/definition-manifest.v2.json";
 import definitionSchema from "./schema/semconv.schema.v2.json";
 
@@ -29,13 +30,6 @@ export interface SchemaResolver {
 
 function asNode(value: unknown): Node | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Node) : undefined;
-}
-
-/** A scalar `const`/`enum` value rendered as a string, or undefined for objects. */
-function scalarString(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return undefined;
 }
 
 /** Build a resolver bound to one schema; `$ref`s resolve against that same schema. */
@@ -125,9 +119,9 @@ export function createSchemaResolver(schema: Node): SchemaResolver {
       }
     };
 
-    push(scalarString(resolved.const));
+    push(scalarText(resolved.const));
     if (Array.isArray(resolved.enum)) {
-      for (const value of resolved.enum) push(scalarString(value));
+      for (const value of resolved.enum) push(scalarText(value));
     }
     for (const comp of ["oneOf", "anyOf"] as const) {
       const branches = resolved[comp];

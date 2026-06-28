@@ -131,17 +131,26 @@ export class RegistryIndex {
     if (this.importingDocs > 0) return [];
     const entry = this.docs.get(uri);
     if (!entry) return [];
-    return entry.refs.filter(
+    const unresolved = entry.refs.filter(
       (ref) => this.definitionsFor(ref.id, RESOLUTION[ref.refKind]).length === 0,
     );
+    // A prose mention resolves against every definition kind, so it's unresolved
+    // exactly when no definition carries its id.
+    for (const ref of entry.proseRefs) {
+      if (!this.defIndex.has(ref.id)) unresolved.push(ref);
+    }
+    return unresolved;
   }
 
   duplicateDefinitions(uri: string): Definition[] {
     const entry = this.docs.get(uri);
     if (!entry) return [];
+    // With imports the workspace composes independent registries, so a shared id
+    // across files isn't a real duplicate — restrict the check to within this file.
+    const crossFile = this.importingDocs === 0;
     return entry.defs.filter((def) => {
-      const peers = this.defIndex.get(def.id) ?? [];
-      return peers.filter((p) => p.kind === def.kind).length > 1;
+      const peers = crossFile ? (this.defIndex.get(def.id) ?? []) : entry.defs;
+      return peers.filter((p) => p.id === def.id && p.kind === def.kind).length > 1;
     });
   }
 }

@@ -19,7 +19,7 @@ spans:
     requirement_level: recommended
     kind: client
     name:
-      note: Span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`.
+      note: "`{gen_ai.operation.name} {gen_ai.request.model}`"
     stability: development
     brief: A client call to a Generative AI model or service.
     entity_associations:
