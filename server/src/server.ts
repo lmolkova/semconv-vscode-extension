@@ -140,9 +140,12 @@ function indexText(uri: string, text: string, parsed?: ParsedSemconv): void {
 }
 
 function indexDocument(doc: TextDocument): void {
-  // Markdown is indexed from its raw text, not parsed as YAML — skip the YAML parse.
-  const parsed = isMarkdown(doc.uri) ? undefined : parsedFor(doc);
-  indexText(doc.uri, doc.getText(), parsed);
+  const text = doc.getText();
+  // Reuse the version-cached parse only for semconv-looking YAML; markdown and
+  // unrelated YAML skip the parse (indexText re-checks and short-circuits before
+  // it would use `parsed`).
+  const parsed = !isMarkdown(doc.uri) && looksLikeSemconv(text) ? parsedFor(doc) : undefined;
+  indexText(doc.uri, text, parsed);
 }
 
 documents.onDidChangeContent((change) => {
