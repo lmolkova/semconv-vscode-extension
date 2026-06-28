@@ -32,7 +32,8 @@
   ],
   "main": "./out/client/extension.js",
   "activationEvents": [
-    "onLanguage:yaml"
+    "onLanguage:yaml",
+    "onLanguage:markdown"
   ],
   "contributes": {
     "configuration": {

@@ -17,7 +17,8 @@ export type DefKind =
 
 // The YAML field each reference comes from: attribute_ref -> ref;
 // group_ref -> ref_group; entity_assoc -> entity_associations[]; the
-// *_refinement_ref kinds -> a refinement's own ref. Resolution targets: RESOLUTION.
+// *_refinement_ref kinds -> a refinement's own ref. The md_* kinds come from
+// `<!-- weaver ... -->` snippet queries in markdown. Resolution targets: RESOLUTION.
 export type RefKind =
   | "attribute_ref"
   | "group_ref"
@@ -25,7 +26,16 @@ export type RefKind =
   | "entity_refinement_ref"
   | "event_refinement_ref"
   | "metric_refinement_ref"
-  | "span_refinement_ref";
+  | "span_refinement_ref"
+  | "md_attribute_ref"
+  | "md_event_ref"
+  | "md_metric_ref"
+  | "md_span_ref"
+  | "md_entity_ref"
+  | "md_event_refinement_ref"
+  | "md_metric_refinement_ref"
+  | "md_span_refinement_ref"
+  | "md_entity_refinement_ref";
 
 export const RESOLUTION: Record<RefKind, DefKind[]> = {
   attribute_ref: ["attribute"],
@@ -35,6 +45,15 @@ export const RESOLUTION: Record<RefKind, DefKind[]> = {
   event_refinement_ref: ["event"],
   metric_refinement_ref: ["metric"],
   span_refinement_ref: ["span"],
+  md_attribute_ref: ["attribute"],
+  md_event_ref: ["event"],
+  md_metric_ref: ["metric"],
+  md_span_ref: ["span"],
+  md_entity_ref: ["entity"],
+  md_event_refinement_ref: ["event_refinement"],
+  md_metric_refinement_ref: ["metric_refinement"],
+  md_span_refinement_ref: ["span_refinement"],
+  md_entity_refinement_ref: ["entity_refinement"],
 };
 
 export interface Definition {

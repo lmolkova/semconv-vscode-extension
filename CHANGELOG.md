@@ -4,6 +4,11 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+- Markdown support for weaver snippets: the ids inside `<!-- weaver ... -->`
+  snippet queries (event/metric names, span/entity types, refinement ids, and
+  attribute keys) now support Go to Definition and Find All References into the
+  defining YAML, are renamed along with the definition, and are flagged inline
+  when they don't resolve to anything in the registry.
 - Rename (F2) an attribute, signal, or refinement and update every reference
   across the registry, including backtick- or `{}`-wrapped mentions of the id in
   free-form `brief` / `note` text. The old id is kept as a deprecated
