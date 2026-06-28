@@ -108,4 +108,15 @@ attributes:
     const { refs } = extract(doc, "file:///x.yaml");
     expect(refs).toHaveLength(0);
   });
+
+  it("ignores a wrapped span that isn't a single id (e.g. a backtick around `{a} {b}`)", () => {
+    const span = `file_format: definition/2
+spans:
+  - type: s
+    name:
+      note: Span name SHOULD be \`{a.b} {c.d}\`.
+`;
+    const { proseRefs } = extract(span, "file:///x.yaml");
+    expect(proseRefs.map((r) => r.id)).toEqual(["a.b", "c.d"]);
+  });
 });

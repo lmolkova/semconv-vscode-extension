@@ -20,7 +20,7 @@ single span from the resolved registry by its `type`.
 
 A client call to a Generative AI model or service.
 
-**Span name** SHOULD be Span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`..
+**Span name** SHOULD be Span name SHOULD be `{gen_ai.operation.name} {gen_ai.request.model}`.
 
 **Span kind** SHOULD be `CLIENT`.
 

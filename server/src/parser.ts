@@ -94,6 +94,13 @@ export function readScalar(map: YAMLMap, key: string): string | undefined {
   return undefined;
 }
 
+/** A scalar's primitive value (string/number/boolean) as text; undefined otherwise. */
+export function scalarText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
+}
+
 export function scalarNode(map: YAMLMap, key: string): Scalar | undefined {
   const node = map.get(key, true);
   return isScalar(node) ? node : undefined;

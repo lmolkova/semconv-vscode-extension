@@ -190,6 +190,23 @@ describe("RegistryIndex – diagnostics rules", () => {
     expect(unresolved.map((r) => r.id)).not.toContain("gen_ai.provider.name");
   });
 
+  it("flags an unresolved backtick/brace mention in brief/note prose", () => {
+    const idx = buildIndex();
+    const uri = uriOf("prose.yaml");
+    const text = `file_format: definition/2
+spans:
+  - type: gen_ai.inference.client
+    name:
+      note: Span name SHOULD be \`{gen_ai.operation.name} {gen_ai.request.typo}\`.
+`;
+    const { defs, refs, proseRefs, hasImports } = extract(text, uri);
+    idx.setDocument(uri, defs, refs, proseRefs, hasImports);
+
+    const unresolved = idx.unresolvedReferences(uri).map((r) => r.id);
+    expect(unresolved).toContain("gen_ai.request.typo");
+    expect(unresolved).not.toContain("gen_ai.operation.name");
+  });
+
   it("suppresses unresolved diagnostics when any registry file imports", () => {
     const idx = buildIndex();
     const diag = indexDiagnosticsFixture(idx);

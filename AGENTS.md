@@ -46,6 +46,8 @@ Before adding work there, ask what runs per-token/per-scalar/per-file and how of
 - **Cache anything heavy whose result is determined by stable inputs.** Schema
   traversal (`schema-resolver.ts`) is memoized by structural path; parses are cached
   by document version (`parsedFor`). Reuse these — don't re-parse or re-walk.
+- A helper that derives from a parse should accept the parsed input, not raw text it
+  re-parses. Re-parsing inside a helper defeats the cache the caller already holds.
 - A handler that calls a helper once per scalar/token turns a cheap helper into an
   O(scalars) cost. Memoize the helper (keyed by its real inputs, not the document) or
   hoist the work out of the loop.
@@ -57,6 +59,8 @@ Before adding work there, ask what runs per-token/per-scalar/per-file and how of
 ## Style
 
 - Be concise. Match the surrounding code's naming and idioms.
+- When the same read→branch→update or render logic appears in
+  multiple handlers, factor a single shared helper — copies drift, and the drift is the bug.
 - **Default to zero comments.** Fix unclear code with better names, not comments.
 - Only comment a genuine gotcha (non-obvious workaround, ordering constraint, upstream bug) or link an issue/spec. The bar: a competent reader is _stuck_ without it. "Helpful context", "explains why", "documents the choice" don't qualify.
 - When editing, delete comments that fail this bar.

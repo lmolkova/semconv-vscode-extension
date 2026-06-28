@@ -30,7 +30,7 @@ import { defKindToSymbolKind } from "./document-symbols";
 import { RegistryIndex } from "./index";
 import { pathAtParsed } from "./key-path";
 import { manifestDiagnostics } from "./manifest";
-import { extractMarkdown, looksLikeWeaverDoc } from "./markdown";
+import { extractMarkdown } from "./markdown";
 import { extract } from "./model";
 import { looksLikeSemconv, ParsedSemconv, parseSemconv } from "./parser";
 import { buildRenameEdits, prepareRename } from "./rename";
@@ -110,16 +110,7 @@ async function scanWorkspace(): Promise<void> {
         const text = await fs.readFile(file, "utf8");
         const uri = URI.file(file).toString();
         if (documents.get(uri)) continue; // open docs are indexed from their buffer
-        if (isMarkdown(uri)) {
-          if (looksLikeWeaverDoc(text)) {
-            const refs = extractMarkdown(text, uri);
-            if (refs.length) index.setDocument(uri, [], refs, [], false);
-          }
-          continue;
-        }
-        if (!looksLikeSemconv(text)) continue;
-        const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
-        if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
+        indexText(uri, text);
       } catch {
         // ignore unreadable / unparseable files
       }
@@ -127,19 +118,31 @@ async function scanWorkspace(): Promise<void> {
   }
 }
 
-function indexDocument(doc: TextDocument): void {
-  if (isMarkdown(doc.uri)) {
-    const refs = extractMarkdown(doc.getText(), doc.uri);
-    if (refs.length) index.setDocument(doc.uri, [], refs, [], false);
-    else index.removeDocument(doc.uri);
+/**
+ * Single index-update path shared by the workspace scan, open-buffer changes, and
+ * file-watch events. `parsed` lets the hot open-buffer path reuse the version-cached
+ * parse instead of re-parsing.
+ */
+function indexText(uri: string, text: string, parsed?: ParsedSemconv): void {
+  if (isMarkdown(uri)) {
+    const refs = extractMarkdown(text, uri);
+    if (refs.length) index.setDocument(uri, [], refs, [], false);
+    else index.removeDocument(uri);
     return;
   }
-  const { isSemconv, defs, refs, proseRefs, hasImports } = extract(doc.getText(), doc.uri);
-  if (isSemconv) {
-    index.setDocument(doc.uri, defs, refs, proseRefs, hasImports);
-  } else {
-    index.removeDocument(doc.uri);
+  if (!looksLikeSemconv(text)) {
+    index.removeDocument(uri);
+    return;
   }
+  const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri, parsed);
+  if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
+  else index.removeDocument(uri);
+}
+
+function indexDocument(doc: TextDocument): void {
+  // Markdown is indexed from its raw text, not parsed as YAML — skip the YAML parse.
+  const parsed = isMarkdown(doc.uri) ? undefined : parsedFor(doc);
+  indexText(doc.uri, doc.getText(), parsed);
 }
 
 documents.onDidChangeContent((change) => {
@@ -169,15 +172,7 @@ documents.onDidClose((event) => {
 async function scanFile(uri: string): Promise<void> {
   try {
     const text = await fs.readFile(URI.parse(uri).fsPath, "utf8");
-    if (isMarkdown(uri)) {
-      const refs = extractMarkdown(text, uri);
-      if (refs.length) index.setDocument(uri, [], refs, [], false);
-      else index.removeDocument(uri);
-      return;
-    }
-    const { isSemconv, defs, refs, proseRefs, hasImports } = extract(text, uri);
-    if (isSemconv) index.setDocument(uri, defs, refs, proseRefs, hasImports);
-    else index.removeDocument(uri);
+    indexText(uri, text);
   } catch {
     index.removeDocument(uri);
   }
@@ -368,8 +363,8 @@ function renderHover(def: Definition): string {
   return lines.join("\n");
 }
 
-function renderKeyHover(key: string, info: KeyDoc): string {
-  const lines: string[] = [`**${key}**${info.deprecated ? " _(deprecated)_" : ""}`];
+function renderKeyDoc(header: string, info: KeyDoc): string {
+  const lines: string[] = [header];
   if (info.description) lines.push("", info.description);
   if (info.enumValues?.length) {
     lines.push("", `Allowed values: ${info.enumValues.map((v) => `\`${v}\``).join(", ")}`);
@@ -377,13 +372,12 @@ function renderKeyHover(key: string, info: KeyDoc): string {
   return lines.join("\n");
 }
 
+function renderKeyHover(key: string, info: KeyDoc): string {
+  return renderKeyDoc(`**${key}**${info.deprecated ? " _(deprecated)_" : ""}`, info);
+}
+
 function renderEnumValueHover(key: string, value: string, info: KeyDoc): string {
-  const lines: string[] = [`**${value}** — a \`${key}\` value`];
-  if (info.description) lines.push("", info.description);
-  if (info.enumValues?.length) {
-    lines.push("", `Allowed values: ${info.enumValues.map((v) => `\`${v}\``).join(", ")}`);
-  }
-  return lines.join("\n");
+  return renderKeyDoc(`**${value}** — a \`${key}\` value`, info);
 }
 
 documents.listen(connection);

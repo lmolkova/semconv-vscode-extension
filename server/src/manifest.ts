@@ -1,7 +1,15 @@
 import { Range } from "vscode-languageserver";
 import { isMap, isScalar, Scalar, YAMLMap } from "yaml";
 
-import { nodeRange, OffsetConverter, ParsedSemconv, scalarNode, seq, tokenRange } from "./parser";
+import {
+  nodeRange,
+  OffsetConverter,
+  ParsedSemconv,
+  scalarNode,
+  scalarText,
+  seq,
+  tokenRange,
+} from "./parser";
 import manifestSchema from "./schema/definition-manifest.v2.json";
 
 export interface ManifestFinding {
@@ -112,13 +120,6 @@ function checkSchemaUrl(node: Scalar, off: OffsetConverter, findings: ManifestFi
         "with a 'major.minor.patch' version (e.g. .../1.0.0).",
     });
   }
-}
-
-/** A scalar's primitive value as text; undefined for null or non-primitive nodes. */
-function scalarText(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return undefined;
 }
 
 function unknownKeys(

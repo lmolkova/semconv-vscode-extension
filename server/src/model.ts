@@ -4,6 +4,7 @@ import { FREE_FORM_KEYS, wrappedMentions } from "./mentions";
 import {
   mapItems,
   OffsetConverter,
+  ParsedSemconv,
   parseSemconv,
   readScalar,
   scalarNode,
@@ -17,8 +18,8 @@ export interface ExtractResult {
   defs: Definition[];
   refs: Reference[];
   // Backtick-/brace-wrapped id mentions in `brief`/`note` prose. Kept apart from
-  // `refs` so they never trigger unresolved-reference diagnostics — a mention is
-  // only treated as a reference where it resolves to a real definition.
+  // `refs` because they resolve against every definition kind and render inline with
+  // the surrounding prose; an unresolved one is reported like any other ref.
   proseRefs: Reference[];
   hasImports: boolean;
 }
@@ -38,8 +39,12 @@ const REFINEMENTS: { array: string; defKind: DefKind; refKind: RefKind }[] = [
   { array: "span_refinements", defKind: "span_refinement", refKind: "span_refinement_ref" },
 ];
 
-export function extract(text: string, uri: string): ExtractResult {
-  const parsed = parseSemconv(text);
+/** `parsed` lets callers reuse a version-cached parse instead of re-parsing `text`. */
+export function extract(
+  text: string,
+  uri: string,
+  parsed: ParsedSemconv = parseSemconv(text),
+): ExtractResult {
   const defs: Definition[] = [];
   const refs: Reference[] = [];
 
@@ -78,6 +83,10 @@ function extractProseMentions(
       if (!isScalar(value) || typeof value.value !== "string" || !value.range) return;
       const from = value.range[0];
       for (const m of wrappedMentions(text.slice(from, value.range[1]))) {
+        // A real id is a single token; skip spans that wrap whitespace or another
+        // delimiter (e.g. a backtick around `{a} {b}`), which only resolve by accident
+        // and would otherwise be flagged unresolved.
+        if (!MENTION_ID.test(m.id)) continue;
         proseRefs.push({
           refKind: "prose_ref",
           id: m.id,
@@ -89,6 +98,8 @@ function extractProseMentions(
   });
   return proseRefs;
 }
+
+const MENTION_ID = /^[^\s`{}]+$/;
 
 interface Ctx {
   off: OffsetConverter;
