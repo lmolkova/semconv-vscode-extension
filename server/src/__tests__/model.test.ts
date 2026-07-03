@@ -109,6 +109,20 @@ attributes:
     expect(refs).toHaveLength(0);
   });
 
+  for (const level of ["conditionally_required", "recommended", "opt_in"]) {
+    it(`captures mentions in ${level} requirement-level prose`, () => {
+      const attr = `file_format: definition/2
+attributes:
+  - key: a.b
+    brief: An attribute.
+    requirement_level:
+      ${level}: Applies when \`a.other\` is set.
+`;
+      const { proseRefs } = extract(attr, "file:///x.yaml");
+      expect(proseRefs.map((r) => r.id)).toEqual(["a.other"]);
+    });
+  }
+
   it("ignores a wrapped span that isn't a single id (e.g. a backtick around `{a} {b}`)", () => {
     const span = `file_format: definition/2
 spans:

@@ -190,7 +190,7 @@ describe("RegistryIndex – diagnostics rules", () => {
     expect(unresolved.map((r) => r.id)).not.toContain("gen_ai.provider.name");
   });
 
-  it("flags an unresolved backtick/brace mention in brief/note prose", () => {
+  it("does not flag unresolved backtick/brace mentions in brief/note prose", () => {
     const idx = buildIndex();
     const uri = uriOf("prose.yaml");
     const text = `file_format: definition/2
@@ -203,8 +203,10 @@ spans:
     idx.setDocument(uri, defs, refs, proseRefs, hasImports);
 
     const unresolved = idx.unresolvedReferences(uri).map((r) => r.id);
-    expect(unresolved).toContain("gen_ai.request.typo");
+    expect(unresolved).not.toContain("gen_ai.request.typo");
     expect(unresolved).not.toContain("gen_ai.operation.name");
+    // A resolved prose mention still lights up navigation/highlighting.
+    expect(idx.resolvedProseRefs(uri).map((r) => r.id)).toContain("gen_ai.operation.name");
   });
 
   it("suppresses unresolved diagnostics when any registry file imports", () => {
