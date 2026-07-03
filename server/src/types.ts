@@ -97,5 +97,4 @@ export interface Reference {
 }
 
 export type SymbolAt =
-  | { kind: "definition"; def: Definition }
-  | { kind: "reference"; ref: Reference };
+  { kind: "definition"; def: Definition } | { kind: "reference"; ref: Reference };

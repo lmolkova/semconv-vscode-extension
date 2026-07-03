@@ -29,7 +29,7 @@ export interface WrappedMention {
 export function wrappedMentions(s: string): WrappedMention[] {
   const out: WrappedMention[] = [];
   for (const [open, close] of WRAPPERS) {
-    for (let i = s.indexOf(open); i !== -1; ) {
+    for (let i = s.indexOf(open); i !== -1;) {
       const j = s.indexOf(close, i + open.length);
       if (j === -1) break;
       const start = i + open.length;
