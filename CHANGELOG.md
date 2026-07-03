@@ -4,6 +4,15 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+- Backtick- or `{}`-wrapped mentions in `brief` / `note` prose are no longer
+  flagged as unresolved references — braces and backticks appear in prose for
+  many reasons unrelated to ids, so the warning was mostly false positives. A
+  mention that _does_ resolve still supports Go to Definition, Find All
+  References, and reference syntax highlighting.
+- Resolved id mentions are now recognized in the conditional requirement-level
+  descriptions (`conditionally_required`, `recommended`, `opt_in`) too, in
+  addition to `brief` / `note`.
+
 ## 0.3.0
 
 - Backtick- or `{}`-wrapped mentions of an id (`` `key` ``, `{key}`) in

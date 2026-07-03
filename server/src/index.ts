@@ -131,15 +131,13 @@ export class RegistryIndex {
     if (this.importingDocs > 0) return [];
     const entry = this.docs.get(uri);
     if (!entry) return [];
-    const unresolved = entry.refs.filter(
+    // Prose mentions ({id}/`id` in brief/note) are intentionally excluded: braces and
+    // backticks appear in prose for reasons unrelated to ids, so warning on the ones
+    // that don't resolve is mostly false positives. A resolved prose mention still
+    // lights up navigation/hover/highlighting (see resolvedProseRefs, symbolAt).
+    return entry.refs.filter(
       (ref) => this.definitionsFor(ref.id, RESOLUTION[ref.refKind]).length === 0,
     );
-    // A prose mention resolves against every definition kind, so it's unresolved
-    // exactly when no definition carries its id.
-    for (const ref of entry.proseRefs) {
-      if (!this.defIndex.has(ref.id)) unresolved.push(ref);
-    }
-    return unresolved;
   }
 
   duplicateDefinitions(uri: string): Definition[] {
