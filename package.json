@@ -63,8 +63,8 @@
     },
     "commands": [
       {
-        "command": "semconv.addWeaverMcpToClaude",
-        "title": "Add Weaver MCP Server to .mcp.json (Claude Code)",
+        "command": "semconv.addWeaverMcpServer",
+        "title": "Add Weaver MCP Server to Agent Config…",
         "category": "SemConv"
       }
     ],

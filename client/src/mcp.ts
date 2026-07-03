@@ -3,11 +3,13 @@ import * as fs from "fs";
 import * as path from "path";
 import {
   commands,
+  env,
   EventEmitter,
   ExtensionContext,
   extensions,
   lm,
   McpStdioServerDefinition,
+  QuickPickItem,
   Uri,
   window,
   workspace,
@@ -19,11 +21,8 @@ declare const __WEAVER_VERSION__: string;
 
 // Contribution id declared in package.json's `mcpServerDefinitionProviders`.
 const PROVIDER_ID = "semconv-weaver";
-const ADD_TO_CLAUDE_COMMAND = "semconv.addWeaverMcpToClaude";
-// Claude Code reads project MCP servers from `.mcp.json` at the workspace root; it does
-// not see servers we register through the VS Code provider API.
-const CLAUDE_EXTENSION_ID = "anthropic.claude-code";
-const CLAUDE_PROMPT_DISMISSED = "semconv.mcp.claudePromptDismissed";
+const ADD_SERVER_COMMAND = "semconv.addWeaverMcpServer";
+const PROMPT_DISMISSED = "semconv.mcp.promptDismissed";
 const SERVER_KEY = "semconv-weaver";
 
 // A registry root is the folder that holds one of these; weaver's `-r` points at it.
@@ -34,6 +33,41 @@ interface WeaverInvocation {
   args: string[];
   docker: boolean;
 }
+
+/**
+ * An external agent whose MCP config the VS Code provider registration can't reach —
+ * each reads its own file at the workspace root. `detect` decides whether that agent is
+ * present (an installed extension, or the host app itself being that agent's IDE fork).
+ */
+interface McpTarget {
+  id: string;
+  label: string;
+  file: string;
+  detect: () => boolean;
+}
+
+const isHost = (name: string) => env.appName.toLowerCase().includes(name);
+
+const TARGETS: McpTarget[] = [
+  {
+    id: "claude",
+    label: "Claude Code — .mcp.json",
+    file: ".mcp.json",
+    detect: () => !!extensions.getExtension("anthropic.claude-code"),
+  },
+  {
+    id: "antigravity",
+    label: "Antigravity — .agents/mcp_config.json",
+    file: path.join(".agents", "mcp_config.json"),
+    detect: () => isHost("antigravity"),
+  },
+  {
+    id: "cursor",
+    label: "Cursor — .cursor/mcp.json",
+    file: path.join(".cursor", "mcp.json"),
+    detect: () => isHost("cursor"),
+  },
+];
 
 /**
  * Registers `weaver registry mcp` as a stdio MCP server for every semconv registry in
@@ -54,7 +88,7 @@ export function registerWeaverMcp(context: ExtensionContext): void {
           .filter((s): s is McpStdioServerDefinition => s !== undefined);
       },
     }),
-    commands.registerCommand(ADD_TO_CLAUDE_COMMAND, addWeaverMcpToClaude),
+    commands.registerCommand(ADD_SERVER_COMMAND, () => pickTargetAndAdd()),
   );
 
   const watcher = workspace.createFileSystemWatcher(MANIFEST_GLOB);
@@ -69,7 +103,7 @@ export function registerWeaverMcp(context: ExtensionContext): void {
     }),
   );
 
-  void maybePromptClaude(context);
+  void maybePromptAgents(context);
 }
 
 async function findRegistries(): Promise<string[]> {
@@ -121,29 +155,44 @@ function weaverInvocation(registryDir: string): WeaverInvocation | undefined {
 }
 
 /**
- * Offers to wire the Weaver MCP server into `.mcp.json` when the Claude Code extension is
- * installed and this workspace has a registry Claude can't otherwise see. Shown once.
+ * Offers to wire the Weaver MCP server into the config of any detected external agent
+ * (Claude Code, Antigravity, Cursor) that can't see the VS Code provider registration.
+ * Shown once per workspace with a registry; dismissible for good.
  */
-async function maybePromptClaude(context: ExtensionContext): Promise<void> {
-  if (!extensions.getExtension(CLAUDE_EXTENSION_ID)) return;
-  if (context.globalState.get(CLAUDE_PROMPT_DISMISSED)) return;
+async function maybePromptAgents(context: ExtensionContext): Promise<void> {
+  if (context.globalState.get(PROMPT_DISMISSED)) return;
   if (!mcpEnabled()) return;
   if (!(await findRegistries()).length) return;
-  if (claudeConfigHasServer()) return;
 
-  const add = "Add to .mcp.json";
+  const pending = TARGETS.filter((t) => t.detect() && !configHasServer(t));
+  if (!pending.length) return;
+
+  const single = pending.length === 1 ? pending[0] : undefined;
+  const add = single ? `Add to ${path.basename(single.file)}` : "Add MCP server…";
   const never = "Don't show again";
   const choice = await window.showInformationMessage(
-    "This workspace has an OpenTelemetry semantic-convention registry. Add the Weaver MCP server to .mcp.json so Claude Code can query it?",
+    "This workspace has an OpenTelemetry semantic-convention registry. Add the Weaver MCP server so your agent can query it?",
     add,
     never,
   );
-  if (choice === add) await addWeaverMcpToClaude();
-  else if (choice === never) await context.globalState.update(CLAUDE_PROMPT_DISMISSED, true);
+  if (choice === add) await (single ? addServer(single) : pickTargetAndAdd(pending));
+  else if (choice === never) await context.globalState.update(PROMPT_DISMISSED, true);
 }
 
-/** Merges a `weaver registry mcp` entry per registry into the workspace root `.mcp.json`. */
-async function addWeaverMcpToClaude(): Promise<void> {
+async function pickTargetAndAdd(targets: McpTarget[] = TARGETS): Promise<void> {
+  const items: (QuickPickItem & { target: McpTarget })[] = targets.map((t) => ({
+    label: t.label,
+    description: t.detect() ? "detected" : undefined,
+    target: t,
+  }));
+  const picked = await window.showQuickPick(items, {
+    placeHolder: "Add the Weaver MCP server to which agent's config?",
+  });
+  if (picked) await addServer(picked.target);
+}
+
+/** Merges a `weaver registry mcp` entry per registry into the target agent's config file. */
+async function addServer(target: McpTarget): Promise<void> {
   const root = workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) return;
   const registries = await findRegistries();
@@ -154,8 +203,8 @@ async function addWeaverMcpToClaude(): Promise<void> {
     return;
   }
 
-  const mcpPath = path.join(root, ".mcp.json");
-  const config = readJson(mcpPath);
+  const configPath = path.join(root, target.file);
+  const config = readJson(configPath);
   const servers = (config.mcpServers ??= {});
   for (const dir of registries) {
     const inv = weaverInvocation(dir);
@@ -171,14 +220,15 @@ async function addWeaverMcpToClaude(): Promise<void> {
     const name = registries.length > 1 ? `${SERVER_KEY}-${path.basename(dir)}` : SERVER_KEY;
     servers[name] = { command: inv.command, args };
   }
-  fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2) + "\n");
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
-  const open = "Open .mcp.json";
+  const open = `Open ${path.basename(target.file)}`;
   const choice = await window.showInformationMessage(
-    "Added the Weaver MCP server to .mcp.json. Approve it when Claude Code prompts.",
+    `Added the Weaver MCP server to ${target.file}. Approve it when your agent prompts.`,
     open,
   );
-  if (choice === open) await window.showTextDocument(Uri.file(mcpPath));
+  if (choice === open) await window.showTextDocument(Uri.file(configPath));
 }
 
 function relativeRegistry(root: string, registryDir: string): string {
@@ -186,10 +236,10 @@ function relativeRegistry(root: string, registryDir: string): string {
   return rel === "" ? "." : rel;
 }
 
-function claudeConfigHasServer(): boolean {
+function configHasServer(target: McpTarget): boolean {
   const root = workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) return false;
-  const servers = readJson(path.join(root, ".mcp.json")).mcpServers;
+  const servers = readJson(path.join(root, target.file)).mcpServers;
   return !!servers && Object.keys(servers).some((k) => k.startsWith(SERVER_KEY));
 }
 

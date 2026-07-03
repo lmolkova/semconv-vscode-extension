@@ -17,7 +17,7 @@ async function main(): Promise<void> {
     const workspace = path.resolve(extensionDevelopmentPath, "test/fixtures");
 
     await runTests({
-      version: "1.96.4",
+      version: "1.101.0",
       extensionDevelopmentPath,
       extensionTestsPath,
       launchArgs: [`--folder-uri=${pathToFileURL(workspace).href}`, "--disable-workspace-trust"],

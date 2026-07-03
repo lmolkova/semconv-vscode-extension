@@ -40,9 +40,10 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
   MCP server, so you can search conventions, look up attribute/metric/span
   details, and validate telemetry samples in natural language. Needs Weaver
   (from `semconv.weaver.path`, `PATH`, or the `otel/weaver` Docker image) and
-  VS Code 1.101+; disable with `semconv.mcp.enabled`. Using the Claude Code
-  extension instead? Run _SemConv: Add Weaver MCP Server to .mcp.json_ (or accept
-  the prompt) to wire the same server into its `.mcp.json`.
+  VS Code 1.101+; disable with `semconv.mcp.enabled`. Using another agent that
+  reads its own config (Claude Code, Antigravity, Cursor)? Run _SemConv: Add
+  Weaver MCP Server to Agent Config_ (or accept the prompt) to wire the same
+  server into that agent's MCP config file.
 
 ### What links to what
 

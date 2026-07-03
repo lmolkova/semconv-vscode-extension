@@ -40,7 +40,12 @@ export function activate(context: ExtensionContext): void {
   client = new LanguageClient("semconv", "SemConv Language Server", serverOptions, clientOptions);
   void client.start();
 
-  registerWeaverMcp(context);
+  // The MCP integration is secondary; never let it take down the language features.
+  try {
+    registerWeaverMcp(context);
+  } catch (err) {
+    console.error("Failed to register the Weaver MCP server", err);
+  }
 }
 
 export function deactivate(): Thenable<void> | undefined {
