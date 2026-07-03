@@ -131,10 +131,11 @@ export class RegistryIndex {
     if (this.importingDocs > 0) return [];
     const entry = this.docs.get(uri);
     if (!entry) return [];
-    // Prose mentions ({id}/`id` in brief/note) are intentionally excluded: braces and
-    // backticks appear in prose for reasons unrelated to ids, so warning on the ones
-    // that don't resolve is mostly false positives. A resolved prose mention still
-    // lights up navigation/hover/highlighting (see resolvedProseRefs, symbolAt).
+    // Prose mentions ({id}/`id` in free-form fields — see FREE_FORM_KEYS) are
+    // intentionally excluded: braces and backticks appear in prose for reasons
+    // unrelated to ids, so warning on the ones that don't resolve is mostly false
+    // positives. A resolved prose mention still lights up navigation/hover/highlighting
+    // (see resolvedProseRefs, symbolAt).
     return entry.refs.filter(
       (ref) => this.definitionsFor(ref.id, RESOLUTION[ref.refKind]).length === 0,
     );
