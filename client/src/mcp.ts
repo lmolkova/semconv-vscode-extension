@@ -93,7 +93,10 @@ export function registerWeaverMcp(context: ExtensionContext): void {
         return (await findRegistries()).map((dir) => weaverServer(dir, runner));
       },
     }),
-    commands.registerCommand(ADD_SERVER_COMMAND, () => pickTargetAndAdd()),
+    commands.registerCommand(ADD_SERVER_COMMAND, (targetId?: string) => {
+      const target = targetId ? TARGETS.find((t) => t.id === targetId) : undefined;
+      return target ? addServer(target) : pickTargetAndAdd();
+    }),
   );
 
   const watcher = workspace.createFileSystemWatcher(MANIFEST_GLOB);
