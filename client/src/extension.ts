@@ -7,6 +7,8 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 
+import { registerWeaverMcp } from "./mcp";
+
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext): void {
@@ -37,6 +39,8 @@ export function activate(context: ExtensionContext): void {
 
   client = new LanguageClient("semconv", "SemConv Language Server", serverOptions, clientOptions);
   void client.start();
+
+  registerWeaverMcp(context);
 }
 
 export function deactivate(): Thenable<void> | undefined {

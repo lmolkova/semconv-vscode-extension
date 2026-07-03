@@ -4,6 +4,16 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+- Each semantic-convention registry in the workspace is now exposed to Copilot
+  agent mode as a Weaver MCP server, so you can ask about your own conventions in
+  natural language (search, look up attributes/metrics/spans, validate samples).
+  Weaver is taken from the `semconv.weaver.path` setting, then `PATH`, then the
+  pinned `otel/weaver` Docker image; turn it off with `semconv.mcp.enabled`.
+  Requires VS Code 1.101+.
+- For the Claude Code extension (which reads its own `.mcp.json` rather than the
+  VS Code registration), the extension offers to add the Weaver MCP server to
+  `.mcp.json` — via a prompt when it's installed, or the _SemConv: Add Weaver MCP
+  Server to .mcp.json_ command any time.
 - Backtick- or `{}`-wrapped mentions in `brief` / `note` prose are no longer
   flagged as unresolved references — braces and backticks appear in prose for
   many reasons unrelated to ids, so the warning was mostly false positives. A

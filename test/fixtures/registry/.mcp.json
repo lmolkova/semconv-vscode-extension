@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "semconv-weaver": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "HOME=/tmp",
+        "-v",
+        "/Users/lmolkova/repo/semconv-lang-server/test/fixtures/registry:/registry:ro",
+        "otel/weaver:v0.24.2",
+        "registry",
+        "mcp",
+        "--v2",
+        "-r",
+        "/registry"
+      ]
+    }
+  }
+}
