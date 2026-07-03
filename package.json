@@ -23,7 +23,7 @@
   ],
   "packageManager": "pnpm@11.9.0",
   "engines": {
-    "vscode": "^1.96.0",
+    "vscode": "^1.101.0",
     "node": ">=22.18.0"
   },
   "categories": [
@@ -48,9 +48,32 @@
           ],
           "default": "off",
           "description": "Log the communication between VS Code and the semconv language server. Use 'messages' or 'verbose' when reporting an issue."
+        },
+        "semconv.weaver.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the `weaver` executable used for the semconv MCP server. When empty, `weaver` is looked up on PATH, then run from the pinned `otel/weaver` Docker image."
+        },
+        "semconv.mcp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Expose each semconv registry in the workspace to Copilot agent mode via `weaver registry mcp`."
         }
       }
     },
+    "commands": [
+      {
+        "command": "semconv.addWeaverMcpServer",
+        "title": "Add Weaver MCP Server to Agent Config…",
+        "category": "SemConv"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "semconv-weaver",
+        "label": "OpenTelemetry Weaver (semconv)"
+      }
+    ],
     "semanticTokenScopes": [
       {
         "language": "yaml",

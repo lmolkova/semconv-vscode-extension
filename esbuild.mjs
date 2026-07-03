@@ -1,5 +1,7 @@
 import { build, context } from "esbuild";
 
+import { WEAVER_VERSION } from "./scripts/weaver-version.mjs";
+
 const watch = process.argv.includes("--watch");
 
 const common = {
@@ -10,6 +12,7 @@ const common = {
   sourcemap: true,
   // vscode is provided by the host at runtime and must never be bundled.
   external: ["vscode"],
+  define: { __WEAVER_VERSION__: JSON.stringify(WEAVER_VERSION) },
   logLevel: "info",
 };
 
