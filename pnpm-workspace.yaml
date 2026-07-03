@@ -1,4 +1,4 @@
-minimumReleaseAge: 10080
+minimumReleaseAge: 4320
 
 # Allowlist of dependencies permitted to run install/build lifecycle scripts.
 # Everything else is blocked by default (strictDepBuilds), so a malicious

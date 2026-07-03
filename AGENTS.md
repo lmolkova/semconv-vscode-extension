@@ -30,7 +30,7 @@ the `words` list in `cspell.json` rather than rewording.
 
 ## Supply chain — don't weaken
 
-Hardening is in `pnpm-workspace.yaml`: `minimumReleaseAge: 10080` (1wk) and `allowBuilds` (dep build scripts blocked by default; allowlist only vetted packages). Updates go through Renovate (`renovate.json`) — don't bump versions by hand.
+Hardening is in `pnpm-workspace.yaml`: `minimumReleaseAge: 4320` (3 days) and `allowBuilds` (dep build scripts blocked by default; allowlist only vetted packages). Updates go through Renovate (`renovate.json`) — don't bump versions by hand.
 
 ## Architecture
 
