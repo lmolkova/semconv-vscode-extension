@@ -28,10 +28,15 @@ const SERVER_KEY = "semconv-weaver";
 // A registry root is the folder that holds one of these; weaver's `-r` points at it.
 const MANIFEST_GLOB = "**/{manifest,registry_manifest}.yaml";
 
-interface WeaverInvocation {
+/**
+ * How to launch `weaver registry mcp`, resolved once (weaver setting → PATH → Docker) and
+ * reused for every registry — `resolveWeaver` can exec `weaver --version`, so it must not
+ * run per registry. `argsFor` fills in the registry path for a single server entry.
+ */
+interface WeaverRunner {
   command: string;
-  args: string[];
   docker: boolean;
+  argsFor: (registry: string) => string[];
 }
 
 /**
@@ -83,9 +88,9 @@ export function registerWeaverMcp(context: ExtensionContext): void {
       onDidChangeMcpServerDefinitions: changed.event,
       provideMcpServerDefinitions: async () => {
         if (!mcpEnabled()) return [];
-        return (await findRegistries())
-          .map(weaverServer)
-          .filter((s): s is McpStdioServerDefinition => s !== undefined);
+        const runner = resolveWeaverRunner();
+        if (!runner) return [];
+        return (await findRegistries()).map((dir) => weaverServer(dir, runner));
       },
     }),
     commands.registerCommand(ADD_SERVER_COMMAND, () => pickTargetAndAdd()),
@@ -115,18 +120,20 @@ function mcpEnabled(): boolean {
   return workspace.getConfiguration("semconv").get("mcp.enabled", true);
 }
 
-function weaverServer(registryDir: string): McpStdioServerDefinition | undefined {
-  const inv = weaverInvocation(registryDir);
-  if (!inv) return undefined;
-  const label = `weaver: ${path.basename(registryDir)}${inv.docker ? " (docker)" : ""}`;
-  return new McpStdioServerDefinition(label, inv.command, inv.args);
+function weaverServer(registryDir: string, runner: WeaverRunner): McpStdioServerDefinition {
+  const label = `weaver: ${path.basename(registryDir)}${runner.docker ? " (docker)" : ""}`;
+  return new McpStdioServerDefinition(label, runner.command, runner.argsFor(registryDir));
 }
 
-/** How to launch `weaver registry mcp` for a registry, or undefined when no weaver is available. */
-function weaverInvocation(registryDir: string): WeaverInvocation | undefined {
+/** Resolve how to launch `weaver registry mcp`, or undefined when no weaver is available. */
+function resolveWeaverRunner(): WeaverRunner | undefined {
   const weaver = resolveWeaver();
   if (weaver) {
-    return { command: weaver, args: ["registry", "mcp", "--v2", "-r", registryDir], docker: false };
+    return {
+      command: weaver,
+      docker: false,
+      argsFor: (registry) => ["registry", "mcp", "--v2", "-r", registry],
+    };
   }
   if (findOnPath("docker")) {
     // Fall back to the pinned image, mirroring scripts/check-registry.mjs. `-i` keeps
@@ -134,14 +141,14 @@ function weaverInvocation(registryDir: string): WeaverInvocation | undefined {
     return {
       command: "docker",
       docker: true,
-      args: [
+      argsFor: (registry) => [
         "run",
         "--rm",
         "-i",
         "-e",
         "HOME=/tmp",
         "-v",
-        `${registryDir}:/registry:ro`,
+        `${registry}:/registry:ro`,
         `otel/weaver:${__WEAVER_VERSION__}`,
         "registry",
         "mcp",
@@ -157,7 +164,8 @@ function weaverInvocation(registryDir: string): WeaverInvocation | undefined {
 /**
  * Offers to wire the Weaver MCP server into the config of any detected external agent
  * (Claude Code, Antigravity, Cursor) that can't see the VS Code provider registration.
- * Shown once per workspace with a registry; dismissible for good.
+ * Prompts whenever a workspace has a registry until "Don't show again" is chosen, which
+ * suppresses it globally (globalState); dismissing without choosing re-prompts next time.
  */
 async function maybePromptAgents(context: ExtensionContext): Promise<void> {
   if (context.globalState.get(PROMPT_DISMISSED)) return;
@@ -203,22 +211,23 @@ async function addServer(target: McpTarget): Promise<void> {
     return;
   }
 
+  const runner = resolveWeaverRunner();
+  if (!runner) {
+    void window.showWarningMessage(
+      "Weaver not found. Set `semconv.weaver.path`, add `weaver` to PATH, or install Docker.",
+    );
+    return;
+  }
+
   const configPath = path.join(root, target.file);
   const config = readJson(configPath);
   const servers = (config.mcpServers ??= {});
   for (const dir of registries) {
-    const inv = weaverInvocation(dir);
-    if (!inv) {
-      void window.showWarningMessage(
-        "Weaver not found. Set `semconv.weaver.path`, add `weaver` to PATH, or install Docker.",
-      );
-      return;
-    }
     // A local weaver runs from the project root, so keep `-r` project-relative for a
     // portable, committable config; the Docker mount still needs the absolute path.
-    const args = inv.docker ? inv.args : [...inv.args.slice(0, -1), relativeRegistry(root, dir)];
+    const args = runner.argsFor(runner.docker ? dir : relativeRegistry(root, dir));
     const name = registries.length > 1 ? `${SERVER_KEY}-${path.basename(dir)}` : SERVER_KEY;
-    servers[name] = { command: inv.command, args };
+    servers[name] = { command: runner.command, args };
   }
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
