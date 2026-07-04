@@ -23,6 +23,12 @@ such as [`semantic-conventions-genai`](https://github.com/open-telemetry/semanti
 - **Hover** — an entity's details, or a schema field/enum value's description and
   allowed values, straight from the official schema.
 - **Diagnostics** — unresolved references and duplicate definitions flagged inline.
+- **Validate with Weaver** — run _SemConv: Check Registry with Weaver_ (or let it
+  re-check on save) to validate the whole registry with `weaver registry check`
+  and see its schema, cross-file resolution, and policy findings as diagnostics.
+  A `.weaver.toml` found by walking up from the registry, including any custom
+  Rego policies it declares, is applied. Needs Weaver (see below); toggle with
+  `semconv.check.enabled`.
 - **Outline & symbol search** — per-file outline plus "Go to Symbol in Workspace"
   across the whole registry.
 - **Rename** — rename an attribute, signal, or refinement and update every
@@ -66,8 +72,9 @@ files get field hover and dependency diagnostics. Markdown files are scanned for
 
 - VS Code 1.101 or newer.
 - A workspace folder containing `definition/2` semantic-convention YAML files.
-- The MCP integration additionally needs Weaver on `PATH`, a
-  `semconv.weaver.path`, or Docker (to run the pinned `otel/weaver` image).
+- The Weaver integrations (registry check, MCP server) additionally need Weaver
+  on `PATH`, a `semconv.weaver.path`, or Docker (to run the pinned `otel/weaver`
+  image).
 
 ## Installation
 
@@ -80,11 +87,12 @@ the features above work automatically on YAML files.
 
 ## Settings
 
-| Setting                | Default | Description                                                                                                                                          |
-| ---------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `semconv.trace.server` | `off`   | Log the communication between VS Code and the language server (`off` / `messages` / `verbose`). Useful when reporting an issue.                      |
-| `semconv.weaver.path`  | `""`    | Path to the `weaver` executable for the MCP server. When empty, `weaver` is looked up on `PATH`, then run via the pinned `otel/weaver` Docker image. |
-| `semconv.mcp.enabled`  | `true`  | Expose each registry in the workspace to Copilot agent mode via `weaver registry mcp`.                                                               |
+| Setting                 | Default | Description                                                                                                                                                                                                        |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `semconv.trace.server`  | `off`   | Log the communication between VS Code and the language server (`off` / `messages` / `verbose`). Useful when reporting an issue.                                                                                    |
+| `semconv.weaver.path`   | `""`    | Path to the `weaver` executable for the MCP server. When empty, `weaver` is looked up on `PATH`, then run via the pinned `otel/weaver` Docker image.                                                               |
+| `semconv.mcp.enabled`   | `true`  | Expose each registry in the workspace to Copilot agent mode via `weaver registry mcp`.                                                                                                                             |
+| `semconv.check.enabled` | `true`  | Validate each registry with `weaver registry check` on save (a `.weaver.toml` found by walking up from the registry, including its policies, is applied). Run manually with _SemConv: Check Registry with Weaver_. |
 
 ## Limitations
 

@@ -4,6 +4,14 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+- Registries can now be validated with Weaver: the _SemConv: Check Registry with
+  Weaver_ command (and an automatic re-check on save, toggled by
+  `semconv.check.enabled`) runs `weaver registry check` and surfaces its schema,
+  cross-file resolution, and Rego policy findings as diagnostics. A `.weaver.toml`
+  found by walking up from the registry — including any custom policies it
+  declares — is applied.
+  Uses the same Weaver as the MCP integration (`semconv.weaver.path`, `PATH`, or
+  the pinned `otel/weaver` Docker image).
 - Each semantic-convention registry in the workspace is now exposed to Copilot
   agent mode as a Weaver MCP server, so you can ask about your own conventions in
   natural language (search, look up attributes/metrics/spans, validate samples).
