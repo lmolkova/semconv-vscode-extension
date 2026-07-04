@@ -4,6 +4,8 @@ User-facing changes to the extension. Newest first.
 
 ## Unreleased
 
+## 0.4.0
+
 - Registries can now be validated with Weaver: the _SemConv: Check Registry with
   Weaver_ command (and an automatic re-check on save, toggled by
   `semconv.check.enabled`) runs `weaver registry check` and surfaces its schema,
