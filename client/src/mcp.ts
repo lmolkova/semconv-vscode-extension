@@ -1,4 +1,3 @@
-import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import {
@@ -15,29 +14,19 @@ import {
   workspace,
 } from "vscode";
 
-// Injected by esbuild from scripts/weaver-version.mjs — the pinned otel/weaver tag,
-// shared with the CI registry check and the vendored JSON schema.
-declare const __WEAVER_VERSION__: string;
+import {
+  dockerArgs,
+  findRegistries,
+  MANIFEST_GLOB,
+  resolveWeaverRunner,
+  WeaverRunner,
+} from "./weaver";
 
 // Contribution id declared in package.json's `mcpServerDefinitionProviders`.
 const PROVIDER_ID = "semconv-weaver";
 const ADD_SERVER_COMMAND = "semconv.addWeaverMcpServer";
 const PROMPT_DISMISSED = "semconv.mcp.promptDismissed";
 const SERVER_KEY = "semconv-weaver";
-
-// A registry root is the folder that holds one of these; weaver's `-r` points at it.
-const MANIFEST_GLOB = "**/{manifest,registry_manifest}.yaml";
-
-/**
- * How to launch `weaver registry mcp`, resolved once (weaver setting → PATH → Docker) and
- * reused for every registry — `resolveWeaver` can exec `weaver --version`, so it must not
- * run per registry. `argsFor` fills in the registry path for a single server entry.
- */
-interface WeaverRunner {
-  command: string;
-  docker: boolean;
-  argsFor: (registry: string) => string[];
-}
 
 /**
  * An external agent whose MCP config the VS Code provider registration can't reach —
@@ -114,54 +103,23 @@ export function registerWeaverMcp(context: ExtensionContext): void {
   void maybePromptAgents(context);
 }
 
-async function findRegistries(): Promise<string[]> {
-  const manifests = await workspace.findFiles(MANIFEST_GLOB, "**/node_modules/**");
-  return [...new Set(manifests.map((uri) => path.dirname(uri.fsPath)))];
-}
-
 function mcpEnabled(): boolean {
   return workspace.getConfiguration("semconv").get("mcp.enabled", true);
 }
 
 function weaverServer(registryDir: string, runner: WeaverRunner): McpStdioServerDefinition {
   const label = `weaver: ${path.basename(registryDir)}${runner.docker ? " (docker)" : ""}`;
-  return new McpStdioServerDefinition(label, runner.command, runner.argsFor(registryDir));
+  return new McpStdioServerDefinition(label, runner.command, mcpArgs(runner, registryDir));
 }
 
-/** Resolve how to launch `weaver registry mcp`, or undefined when no weaver is available. */
-function resolveWeaverRunner(): WeaverRunner | undefined {
-  const weaver = resolveWeaver();
-  if (weaver) {
-    return {
-      command: weaver,
-      docker: false,
-      argsFor: (registry) => ["registry", "mcp", "--v2", "-r", registry],
-    };
-  }
-  if (findOnPath("docker")) {
-    // Fall back to the pinned image, mirroring scripts/check-registry.mjs. `-i` keeps
-    // stdin open for the JSON-RPC stream; HOME is set because weaver caches under it.
-    return {
-      command: "docker",
-      docker: true,
-      argsFor: (registry) => [
-        "run",
-        "--rm",
-        "-i",
-        "-e",
-        "HOME=/tmp",
-        "-v",
-        `${registry}:/registry:ro`,
-        `otel/weaver:${__WEAVER_VERSION__}`,
-        "registry",
-        "mcp",
-        "--v2",
-        "-r",
-        "/registry",
-      ],
-    };
-  }
-  return undefined;
+/** `weaver registry mcp` args for one registry; the Docker fallback mounts it read-only. */
+function mcpArgs(runner: WeaverRunner, registry: string): string[] {
+  if (!runner.docker) return ["registry", "mcp", "--v2", "-r", registry];
+  return dockerArgs({
+    mounts: [{ host: registry, container: "/registry", readOnly: true }],
+    interactive: true,
+    weaverArgs: ["registry", "mcp", "--v2", "-r", "/registry"],
+  });
 }
 
 /**
@@ -228,7 +186,7 @@ async function addServer(target: McpTarget): Promise<void> {
   for (const dir of registries) {
     // A local weaver runs from the project root, so keep `-r` project-relative for a
     // portable, committable config; the Docker mount still needs the absolute path.
-    const args = runner.argsFor(runner.docker ? dir : relativeRegistry(root, dir));
+    const args = mcpArgs(runner, runner.docker ? dir : relativeRegistry(root, dir));
     const name = registries.length > 1 ? `${SERVER_KEY}-${path.basename(dir)}` : SERVER_KEY;
     servers[name] = { command: runner.command, args };
   }
@@ -261,47 +219,4 @@ function readJson(file: string): { mcpServers?: Record<string, unknown> } {
   } catch {
     return {};
   }
-}
-
-/**
- * The configured weaver path (trusted as-is), or a `weaver` on PATH — but only if it is
- * new enough to read the `definition/2` registries this extension targets. A PATH weaver
- * older than the pinned version is skipped so the caller falls back to the pinned image.
- */
-function resolveWeaver(): string | undefined {
-  const configured = workspace.getConfiguration("semconv").get<string>("weaver.path")?.trim();
-  if (configured) return configured;
-  const onPath = findOnPath("weaver");
-  return onPath && atLeastPinned(weaverVersion(onPath)) ? onPath : undefined;
-}
-
-/** Parse the semver out of `weaver --version` (e.g. `weaver 0.24.2`); undefined if it fails. */
-function weaverVersion(bin: string): string | undefined {
-  try {
-    return execFileSync(bin, ["--version"], { encoding: "utf8" }).match(/\d+\.\d+\.\d+/)?.[0];
-  } catch {
-    return undefined;
-  }
-}
-
-function atLeastPinned(version: string | undefined): boolean {
-  if (!version) return false;
-  const pinned = __WEAVER_VERSION__.replace(/^v/, "");
-  const [a, b] = [version, pinned].map((v) => v.split(".").map(Number));
-  for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return true;
-}
-
-function findOnPath(cmd: string): string | undefined {
-  const exts = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-  for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
-    if (!dir) continue;
-    for (const ext of exts) {
-      const candidate = path.join(dir, cmd + ext);
-      if (fs.existsSync(candidate)) return candidate;
-    }
-  }
-  return undefined;
 }

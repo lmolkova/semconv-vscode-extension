@@ -48,9 +48,33 @@ into the defining YAML (see [server/src/markdown.ts](server/src/markdown.ts)).
 
 ## Integrate with Weaver
 
-- [ ] Surface `weaver registry check` results as diagnostics (run the Weaver CLI and
-      map its output back to ranges) so editor warnings match CI.
-- [ ] Consider a command to run Weaver codegen / live-resolve from within VS Code.
+Weaver is resolved once via a shared ladder — `semconv.weaver.path` → version-gated
+`weaver` on PATH → pinned `otel/weaver` Docker image — in
+[client/src/weaver.ts](client/src/weaver.ts), which every weaver feature builds on.
+
+- [x] **MCP server** — expose each registry to Copilot agent mode as a
+      `weaver registry mcp` stdio server, plus a config writer for agents that read
+      their own file (Claude Code / Antigravity / Cursor). See
+      [client/src/mcp.ts](client/src/mcp.ts).
+- [x] **`weaver registry check` → diagnostics** — command _SemConv: Check Registry
+      with Weaver_ + re-check on save, into a dedicated `weaver` DiagnosticCollection
+      ([client/src/check.ts](client/src/check.ts)). Honors a `.weaver.toml` found by
+      walking up from the registry (with its Rego policies). Policy findings — which
+      weaver only provenances to the registry root — are resolved to their exact
+      definition range via the language server's own symbol index. An output channel
+      logs the exact command.
+- [ ] **`registry update-markdown`** — regenerate the `<!-- weaver ... -->` snippet
+      bodies / attribute tables in docs in place (strongest next candidate; pairs with
+      the existing markdown-snippet navigation).
+- [ ] **`registry diff --baseline-registry <ref>`** — breaking-change report vs a
+      baseline (released semconv or a git ref); render json/markdown.
+- [ ] **`registry package`** — package the registry into a publishable artifact
+      (the "publish" flow); release-time, lower priority.
+- [ ] Bundle the weaver binary via a platform-specific `.vsix` (ruff / rust-analyzer
+      pattern) so the check/MCP features don't need Docker or a PATH weaver.
+- [ ] When no local `.weaver.toml`, fall back to a bundled default policy set.
+- Dropped: embedding a weaver web UI in a webview (weaver has no real web UI; only
+  experimental `weaver serve` + the MCP server).
 
 ## Publish to the extension marketplaces
 
