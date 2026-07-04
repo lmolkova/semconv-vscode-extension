@@ -52,7 +52,7 @@
         "semconv.weaver.path": {
           "type": "string",
           "default": "",
-          "description": "Path to the `weaver` executable used for the semconv MCP server. When empty, `weaver` is looked up on PATH, then run from the pinned `otel/weaver` Docker image."
+          "description": "Path to the `weaver` executable used for the semconv MCP server and registry check. When empty, `weaver` is looked up on PATH, then run from the pinned `otel/weaver` Docker image."
         },
         "semconv.mcp.enabled": {
           "type": "boolean",
@@ -62,7 +62,7 @@
         "semconv.check.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Validate each semconv registry with `weaver registry check` when a registry YAML file is saved. Honors a `.weaver.toml` at the workspace root (including its Rego policies). Run manually with the _SemConv: Check Registry with Weaver_ command."
+          "description": "Validate each semconv registry with `weaver registry check` when a registry YAML file is saved. Honors a `.weaver.toml` found by walking up from the registry (including its Rego policies). Run manually with the _SemConv: Check Registry with Weaver_ command."
         }
       }
     },

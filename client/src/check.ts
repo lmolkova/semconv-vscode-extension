@@ -21,6 +21,9 @@ import {
 import { dockerArgs, findRegistries, resolveWeaverRunner, WeaverRunner } from "./weaver";
 
 const CHECK_COMMAND = "semconv.checkRegistry";
+// Bumped per run so a slower earlier run (save + command can overlap) doesn't clobber the
+// diagnostics of a newer one when it finally resolves.
+let generation = 0;
 // Where the workspace root is bind-mounted for a Docker check; also the container CWD, so
 // weaver discovers a repo-root `.weaver.toml` (and its policies) exactly as a native run would.
 const MOUNT = "/workspace";
@@ -78,31 +81,56 @@ async function runCheck(
     `weaver: ${runner.docker ? "docker (otel/weaver image)" : runner.command} — ${registries.length} registr${registries.length === 1 ? "y" : "ies"}`,
   );
 
-  const collect = async () => {
+  const mine = ++generation;
+  const collect = async (): Promise<CheckOutcome> => {
     const byUri = new Map<string, { uri: Uri; diags: Diagnostic[] }>();
+    let failed = false;
     for (const dir of registries) {
-      for (const { uri, diagnostic } of await checkRegistry(runner, dir, output)) {
+      const results = await checkRegistry(runner, dir, output);
+      if (results === undefined) {
+        failed = true;
+        continue;
+      }
+      for (const { uri, diagnostic } of results) {
         const entry = byUri.get(uri.toString()) ?? { uri, diags: [] };
         entry.diags.push(diagnostic);
         byUri.set(uri.toString(), entry);
       }
     }
+    // A newer run started while this one was in flight — let it own the diagnostics.
+    if (mine !== generation) return { superseded: true, failed, total: 0 };
     diagnostics.clear();
     for (const { uri, diags } of byUri.values()) diagnostics.set(uri, diags);
-    return [...byUri.values()].reduce((n, e) => n + e.diags.length, 0);
+    return {
+      failed,
+      total: [...byUri.values()].reduce((n, e) => n + e.diags.length, 0),
+    };
   };
 
   if (silent) {
     await collect();
     return;
   }
-  const total = await window.withProgress(
+  const { failed, total, superseded } = await window.withProgress(
     { location: ProgressLocation.Window, title: "Checking semantic-convention registry…" },
     collect,
   );
+  if (superseded) return;
+  if (failed) {
+    void window.showErrorMessage(
+      "Weaver check failed to run — see the “OTel SemConv (Weaver)” output.",
+    );
+    return;
+  }
   void window.showInformationMessage(
     total ? `Weaver reported ${total} issue${total === 1 ? "" : "s"}.` : "Weaver: no issues found.",
   );
+}
+
+interface CheckOutcome {
+  failed: boolean;
+  total: number;
+  superseded?: boolean;
 }
 
 interface Located {
@@ -114,7 +142,7 @@ async function checkRegistry(
   runner: WeaverRunner,
   registryDir: string,
   output: OutputChannel,
-): Promise<Located[]> {
+): Promise<Located[] | undefined> {
   // Run from the nearest ancestor holding a `.weaver.toml` so weaver discovers it and its
   // (relative) policy paths — matching weaver's own upward-walk — even when the workspace was
   // opened at the registry itself and the config lives above it. No config: the registry is
@@ -144,15 +172,16 @@ async function checkRegistry(
   output.appendLine(`$ ${runner.command} ${args.join(" ")}`);
   const { stdout, stderr } = await run(runner.command, args, base);
   // weaver exits non-zero when the registry has errors, still emitting the JSON report.
-  // A parse failure means weaver itself errored (missing image, bad flags) — nothing to map.
+  // A parse failure means weaver itself errored (missing image, bad flags) — the check didn't
+  // run, so signal failure (undefined) rather than an empty, misleading "no issues" result.
   let report: unknown;
   try {
     report = JSON.parse(stdout);
   } catch {
     output.appendLine(`weaver produced no JSON report; stderr:\n${stderr.trim() || "(empty)"}`);
-    return [];
+    return undefined;
   }
-  if (!Array.isArray(report)) return [];
+  if (!Array.isArray(report)) return undefined;
   const located = await Promise.all(
     report.map((entry) => toDiagnostic(entry, base, registryDir, runner.docker)),
   );

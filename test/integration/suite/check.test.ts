@@ -5,9 +5,11 @@ suite("weaver check", () => {
   // Commands register on activation; force it since this suite may run before any
   // YAML/Markdown document opens to trigger the activation events.
   suiteSetup(async () => {
-    await vscode.extensions
-      .getExtension("LiudmilaMolkova.opentelemetry-semconv-support")
-      ?.activate();
+    const extension = vscode.extensions.getExtension(
+      "LiudmilaMolkova.opentelemetry-semconv-support",
+    );
+    assert.ok(extension, "expected the semconv extension to be installed in the test host");
+    await extension.activate();
   });
 
   test("contributes the Check Registry command", async () => {
